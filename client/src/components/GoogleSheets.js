@@ -54,11 +54,18 @@ function GoogleSheets() {
     try {
       const response = await connectGoogleSheets();
       if (response.data.authUrl) {
+        // Afficher l'URI de redirection pour debug
+        if (response.data.redirectUri) {
+          console.log('URI de redirection configurée:', response.data.redirectUri);
+        }
         window.location.href = response.data.authUrl;
+      } else {
+        alert('Erreur : URL d\'authentification non reçue');
       }
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
-      alert('Erreur lors de la connexion à Google Sheets');
+      const errorMsg = error.response?.data?.error || error.message || 'Erreur lors de la connexion à Google Sheets';
+      alert(`Erreur : ${errorMsg}\n\nVérifiez que GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET sont configurés dans les variables d'environnement.`);
     }
   };
 

@@ -16,37 +16,77 @@ let spreadsheetId = null;
 
 // Route pour initier la connexion Google
 router.get('/auth', (req, res) => {
+  // Vérifier que les identifiants sont configurés
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(500).json({ 
+      error: 'Configuration Google OAuth manquante. Veuillez configurer GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d\'environnement.' 
+    });
+  }
+
   const scopes = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.readonly'
   ];
 
-  const authUrl = oauth2Client.generateAuthUrl({
+  // Construire l'URL de redirection correcte
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
+    (process.env.NODE_ENV === 'production' 
+      ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
+      : 'http://localhost:5000/api/googlesheets/callback');
+
+  // Recréer le client OAuth avec l'URI correcte
+  const client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri
+  );
+
+  const authUrl = client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
-    prompt: 'consent'
+    prompt: 'consent',
+    include_granted_scopes: true
   });
 
-  res.json({ authUrl });
+  res.json({ authUrl, redirectUri });
 });
 
 // Callback après authentification
 router.get('/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, error_description } = req.query;
 
   if (error) {
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent(error)}`);
+    const errorMsg = error_description || error;
+    console.error('Erreur OAuth:', error, error_description);
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent(errorMsg)}`);
+  }
+
+  if (!code) {
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent('Code d\'autorisation manquant')}`);
   }
 
   try {
-    const { tokens } = await oauth2Client.getToken(code);
+    // Reconstruire le client OAuth avec la même URI de redirection
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
+      (process.env.NODE_ENV === 'production' 
+        ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
+        : 'http://localhost:5000/api/googlesheets/callback');
+
+    const client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      redirectUri
+    );
+
+    const { tokens } = await client.getToken(code);
     googleTokens = tokens;
     oauth2Client.setCredentials(tokens);
 
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?success=true`);
   } catch (error) {
     console.error('Erreur lors de l\'obtention du token:', error);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent('Erreur d\'authentification')}`);
+    const errorMsg = error.message || 'Erreur d\'authentification';
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent(errorMsg)}`);
   }
 });
 
