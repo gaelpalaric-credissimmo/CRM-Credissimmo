@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getOutlookStatus, connectOutlook, syncOutlookContacts, getOutlookEmails, getOutlookEvents, disconnectOutlook } from '../api/api';
-import { FiMail, FiCalendar, FiUsers, FiLink, FiUnlink, FiRefreshCw, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiMail, FiCalendar, FiUsers, FiLink, FiLogOut, FiRefreshCw, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
 function Outlook() {
   const [status, setStatus] = useState({ connected: false, loading: true });
@@ -139,7 +139,7 @@ function Outlook() {
           <h2 className="card-title">Intégration Outlook</h2>
           {status.connected ? (
             <button className="btn btn-danger" onClick={handleDisconnect}>
-              <FiUnlink /> Déconnecter
+              <FiLogOut /> Déconnecter
             </button>
           ) : (
             <button className="btn btn-primary" onClick={handleConnect}>
