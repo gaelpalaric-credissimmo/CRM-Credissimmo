@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { getOutlookStatus, connectOutlook, syncOutlookContacts, getOutlookEmails, getOutlookEvents, disconnectOutlook } from '../api/api';
+import { getOutlookStatus, connectOutlook, syncOutlookContacts, getOutlookEmails, getOutlookEvents, disconnectOutlook, connectIMAP, getIMAPStatus, getIMAPEmails, disconnectIMAP } from '../api/api';
 import { FiMail, FiCalendar, FiUsers, FiLink, FiLogOut, FiRefreshCw, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
 function Outlook() {
+  const [connectionType, setConnectionType] = useState('oauth'); // 'oauth' ou 'imap'
   const [status, setStatus] = useState({ connected: false, loading: true });
+  const [imapStatus, setImapStatus] = useState({ connected: false, loading: false });
+  const [imapCredentials, setImapCredentials] = useState({
+    email: '',
+    password: '',
+    host: '',
+    port: 993,
+    tls: true
+  });
   const [userInfo, setUserInfo] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
@@ -30,6 +39,55 @@ function Outlook() {
     } catch (error) {
       console.error('Erreur lors de la vérification du statut:', error);
       setStatus({ connected: false, loading: false });
+    }
+  };
+
+  const checkIMAPStatus = async (email) => {
+    if (!email) return;
+    try {
+      const response = await getIMAPStatus(email);
+      setImapStatus({ connected: response.data.connected, loading: false, email: email });
+    } catch (error) {
+      console.error('Erreur lors de la vérification du statut IMAP:', error);
+      setImapStatus({ connected: false, loading: false });
+    }
+  };
+
+  const handleIMAPConnect = async (e) => {
+    e.preventDefault();
+    setImapStatus({ ...imapStatus, loading: true });
+    try {
+      const response = await connectIMAP(imapCredentials);
+      if (response.data.success) {
+        setImapStatus({ connected: true, loading: false, email: imapCredentials.email });
+        loadIMAPEmails(imapCredentials.email);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la connexion IMAP:', error);
+      alert('Erreur lors de la connexion IMAP: ' + (error.response?.data?.error || error.message));
+      setImapStatus({ connected: false, loading: false });
+    }
+  };
+
+  const loadIMAPEmails = async (email) => {
+    try {
+      const response = await getIMAPEmails(email, 10);
+      setEmails(response.data.emails || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des emails IMAP:', error);
+    }
+  };
+
+  const handleIMAPDisconnect = async () => {
+    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+      try {
+        await disconnectIMAP(imapStatus.email);
+        setImapStatus({ connected: false, loading: false, email: '' });
+        setEmails([]);
+      } catch (error) {
+        console.error('Erreur lors de la déconnexion IMAP:', error);
+        alert('Erreur lors de la déconnexion');
+      }
     }
   };
 
@@ -136,19 +194,98 @@ function Outlook() {
     <div>
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Intégration Outlook</h2>
-          {status.connected ? (
-            <button className="btn btn-danger" onClick={handleDisconnect}>
-              <FiLogOut /> Déconnecter
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={handleConnect}>
-              <FiLink /> Se connecter à Outlook
-            </button>
-          )}
+          <h2 className="card-title">Intégration Email</h2>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', background: '#f0f0f0', padding: '0.5rem', borderRadius: '8px' }}>
+              <button
+                className={`btn ${connectionType === 'oauth' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setConnectionType('oauth')}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              >
+                OAuth (Microsoft)
+              </button>
+              <button
+                className={`btn ${connectionType === 'imap' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setConnectionType('imap')}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              >
+                IMAP
+              </button>
+            </div>
+            {(status.connected || imapStatus.connected) && (
+              <button 
+                className="btn btn-danger" 
+                onClick={connectionType === 'oauth' ? handleDisconnect : handleIMAPDisconnect}
+              >
+                <FiLogOut /> Déconnecter
+              </button>
+            )}
+          </div>
         </div>
 
-        {status.connected ? (
+        {connectionType === 'imap' && !imapStatus.connected && (
+          <div style={{ padding: '2rem' }}>
+            <h3 style={{ marginBottom: '1.5rem' }}>Connexion IMAP</h3>
+            <form onSubmit={handleIMAPConnect}>
+              <div className="form-group">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={imapCredentials.email}
+                  onChange={(e) => setImapCredentials({ ...imapCredentials, email: e.target.value })}
+                  placeholder="votre@email.com"
+                />
+              </div>
+              <div className="form-group">
+                <label>Mot de passe *</label>
+                <input
+                  type="password"
+                  required
+                  value={imapCredentials.password}
+                  onChange={(e) => setImapCredentials({ ...imapCredentials, password: e.target.value })}
+                  placeholder="Votre mot de passe"
+                />
+              </div>
+              <div className="form-group">
+                <label>Serveur IMAP (optionnel - détection automatique)</label>
+                <input
+                  type="text"
+                  value={imapCredentials.host}
+                  onChange={(e) => setImapCredentials({ ...imapCredentials, host: e.target.value })}
+                  placeholder="imap-mail.outlook.com"
+                />
+                <small style={{ color: '#666', fontSize: '0.85rem' }}>
+                  Laissé vide pour détection automatique selon votre domaine email
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Port (optionnel)</label>
+                <input
+                  type="number"
+                  value={imapCredentials.port}
+                  onChange={(e) => setImapCredentials({ ...imapCredentials, port: parseInt(e.target.value) || 993 })}
+                  placeholder="993"
+                />
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={imapCredentials.tls}
+                    onChange={(e) => setImapCredentials({ ...imapCredentials, tls: e.target.checked })}
+                  />
+                  {' '}Utiliser TLS/SSL
+                </label>
+              </div>
+              <button type="submit" className="btn btn-primary" disabled={imapStatus.loading}>
+                {imapStatus.loading ? 'Connexion...' : 'Se connecter'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {connectionType === 'oauth' && status.connected ? (
           <div>
             <div style={{ 
               padding: '1rem', 
@@ -357,17 +494,66 @@ function Outlook() {
               </div>
             )}
           </div>
-        ) : (
+        ) : connectionType === 'oauth' && !status.connected ? (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <FiMail style={{ fontSize: '3rem', color: '#DC6B2F', marginBottom: '1rem' }} />
             <p style={{ marginBottom: '1.5rem' }}>
-              Connectez-vous à Outlook pour synchroniser vos contacts, emails et événements du calendrier.
+              Connectez-vous à Outlook via OAuth pour synchroniser vos contacts, emails et événements du calendrier.
             </p>
             <button className="btn btn-primary" onClick={handleConnect}>
               <FiLink /> Se connecter à Outlook
             </button>
           </div>
-        )}
+        ) : connectionType === 'imap' && imapStatus.connected ? (
+          <div>
+            <div style={{ 
+              padding: '1rem', 
+              background: '#d4edda', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <FiCheckCircle style={{ color: '#28a745' }} />
+              <strong>Connecté via IMAP : {imapStatus.email}</strong>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3>Emails récents</h3>
+              {emails.length > 0 ? (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>De</th>
+                        <th>Sujet</th>
+                        <th>Date</th>
+                        <th>Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emails.map((email) => (
+                        <tr key={email.id}>
+                          <td>{email.fromName || email.from}</td>
+                          <td>{email.subject}</td>
+                          <td>{new Date(email.receivedDateTime).toLocaleDateString('fr-FR')}</td>
+                          <td>
+                            <span className={`badge ${email.isRead ? 'badge-info' : 'badge-warning'}`}>
+                              {email.isRead ? 'Lu' : 'Non lu'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p>Aucun email trouvé.</p>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

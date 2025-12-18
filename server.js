@@ -206,9 +206,13 @@ app.get('/api/stats', (req, res) => {
   res.json(stats);
 });
 
-// Routes Outlook
+// Routes Outlook (OAuth/Microsoft Graph)
 const outlookRoutes = require('./routes/outlook');
 app.use('/api/outlook', outlookRoutes);
+
+// Routes IMAP (pour comptes IMAP génériques)
+const imapRoutes = require('./routes/imap');
+app.use('/api/imap', imapRoutes);
 
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {

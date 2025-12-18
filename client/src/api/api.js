@@ -36,12 +36,18 @@ export const deleteOpportunite = (id) => api.delete(`/opportunites/${id}`);
 // Statistiques
 export const getStats = () => api.get('/stats');
 
-// Outlook
+// Outlook (OAuth/Microsoft Graph)
 export const getOutlookStatus = () => api.get('/outlook/status');
 export const connectOutlook = () => api.get('/outlook/auth');
 export const syncOutlookContacts = () => api.get('/outlook/contacts/sync');
 export const getOutlookEmails = (clientEmail) => api.get('/outlook/emails', { params: { clientEmail } });
 export const getOutlookEvents = (startDate, endDate) => api.get('/outlook/calendar/events', { params: { startDate, endDate } });
 export const disconnectOutlook = () => api.post('/outlook/disconnect');
+
+// IMAP (pour comptes IMAP génériques)
+export const connectIMAP = (credentials) => api.post('/imap/connect', credentials);
+export const getIMAPStatus = (email) => api.get('/imap/status', { params: { email } });
+export const getIMAPEmails = (email, limit) => api.get('/imap/emails', { params: { email, limit } });
+export const disconnectIMAP = (email) => api.post('/imap/disconnect', { email });
 
 export default api;
