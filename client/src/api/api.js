@@ -57,4 +57,13 @@ export const getIMAPStatus = (email) => api.get('/imap/status', { params: { emai
 export const getIMAPEmails = (email, limit) => api.get('/imap/emails', { params: { email, limit } });
 export const disconnectIMAP = (email) => api.post('/imap/disconnect', { email });
 
+// Google Sheets
+export const connectGoogleSheets = () => api.get('/googlesheets/auth');
+export const getGoogleSheetsStatus = () => api.get('/googlesheets/status');
+export const configGoogleSheets = (spreadsheetId) => api.post('/googlesheets/config', { spreadsheetId });
+export const syncClientsToSheets = (clients) => api.post('/googlesheets/clients/sync', { clients });
+export const syncContactsToSheets = (contacts) => api.post('/googlesheets/contacts/sync', { contacts });
+export const syncAllFromSheets = () => api.post('/googlesheets/sync/all');
+export const disconnectGoogleSheets = () => api.post('/googlesheets/disconnect');
+
 export default api;

@@ -1,0 +1,352 @@
+const express = require('express');
+const { google } = require('googleapis');
+const { v4: uuidv4 } = require('uuid');
+const router = express.Router();
+
+// Configuration OAuth2 Google
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/googlesheets/callback'
+);
+
+// Stockage des tokens (en production, utiliser une base de données)
+let googleTokens = {};
+let spreadsheetId = null;
+
+// Route pour initier la connexion Google
+router.get('/auth', (req, res) => {
+  const scopes = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive.readonly'
+  ];
+
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'consent'
+  });
+
+  res.json({ authUrl });
+});
+
+// Callback après authentification
+router.get('/callback', async (req, res) => {
+  const { code, error } = req.query;
+
+  if (error) {
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent(error)}`);
+  }
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    googleTokens = tokens;
+    oauth2Client.setCredentials(tokens);
+
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?success=true`);
+  } catch (error) {
+    console.error('Erreur lors de l\'obtention du token:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent('Erreur d\'authentification')}`);
+  }
+});
+
+// Obtenir un client OAuth valide
+function getAuthClient() {
+  if (!googleTokens.access_token) {
+    throw new Error('Non authentifié avec Google');
+  }
+  oauth2Client.setCredentials(googleTokens);
+  return oauth2Client;
+}
+
+// Vérifier le statut de connexion
+router.get('/status', (req, res) => {
+  res.json({
+    connected: !!googleTokens.access_token,
+    spreadsheetId: spreadsheetId
+  });
+});
+
+// Configurer le spreadsheet ID
+router.post('/config', (req, res) => {
+  const { spreadsheetId: newSpreadsheetId } = req.body;
+  if (!newSpreadsheetId) {
+    return res.status(400).json({ error: 'Spreadsheet ID requis' });
+  }
+  spreadsheetId = newSpreadsheetId;
+  res.json({ success: true, spreadsheetId });
+});
+
+// Lire les contacts depuis Google Sheets
+router.get('/contacts', async (req, res) => {
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
+    }
+
+    // Lire la feuille "Contacts" (ou la première feuille)
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId,
+      range: 'Contacts!A2:Z', // A2 pour ignorer l'en-tête
+    });
+
+    const rows = response.data.values || [];
+    const contacts = rows.map((row, index) => ({
+      id: row[0] || uuidv4(),
+      nom: row[1] || '',
+      prenom: row[2] || '',
+      email: row[3] || '',
+      telephone: row[4] || '',
+      poste: row[5] || '',
+      clientId: row[6] || '',
+      notes: row[7] || '',
+      dateCreation: row[8] || new Date().toISOString(),
+      dateModification: row[9] || new Date().toISOString()
+    })).filter(contact => contact.nom || contact.email); // Filtrer les lignes vides
+
+    res.json(contacts);
+  } catch (error) {
+    console.error('Erreur lors de la lecture des contacts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Écrire les contacts vers Google Sheets
+router.post('/contacts/sync', async (req, res) => {
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
+    }
+
+    const { contacts } = req.body;
+    if (!contacts || !Array.isArray(contacts)) {
+      return res.status(400).json({ error: 'Liste de contacts requise' });
+    }
+
+    // Préparer les données pour Google Sheets
+    const values = contacts.map(contact => [
+      contact.id || '',
+      contact.nom || '',
+      contact.prenom || '',
+      contact.email || '',
+      contact.telephone || '',
+      contact.poste || '',
+      contact.clientId || '',
+      contact.notes || '',
+      contact.dateCreation || new Date().toISOString(),
+      contact.dateModification || new Date().toISOString()
+    ]);
+
+    // Ajouter l'en-tête si la feuille est vide
+    const header = [['ID', 'Nom', 'Prénom', 'Email', 'Téléphone', 'Poste', 'Client ID', 'Notes', 'Date Création', 'Date Modification']];
+
+    // Vérifier si la feuille existe
+    try {
+      await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Contacts!A1',
+      });
+    } catch (error) {
+      // Créer la feuille avec l'en-tête
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheetId,
+        range: 'Contacts!A1:J1',
+        valueInputOption: 'RAW',
+        resource: { values: header }
+      });
+    }
+
+    // Effacer les anciennes données (sauf l'en-tête)
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: spreadsheetId,
+      range: 'Contacts!A2:Z1000',
+    });
+
+    // Écrire les nouvelles données
+    if (values.length > 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheetId,
+        range: 'Contacts!A2',
+        valueInputOption: 'RAW',
+        resource: { values }
+      });
+    }
+
+    res.json({ success: true, count: contacts.length });
+  } catch (error) {
+    console.error('Erreur lors de l\'écriture des contacts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Lire les clients depuis Google Sheets
+router.get('/clients', async (req, res) => {
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId,
+      range: 'Clients!A2:Z',
+    });
+
+    const rows = response.data.values || [];
+    const clients = rows.map((row) => ({
+      id: row[0] || uuidv4(),
+      nom: row[1] || '',
+      email: row[2] || '',
+      telephone: row[3] || '',
+      entreprise: row[4] || '',
+      adresse: row[5] || '',
+      notes: row[6] || '',
+      apporteurId: row[7] || null,
+      dateCreation: row[8] || new Date().toISOString(),
+      dateModification: row[9] || new Date().toISOString()
+    })).filter(client => client.nom || client.email);
+
+    res.json(clients);
+  } catch (error) {
+    console.error('Erreur lors de la lecture des clients:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Écrire les clients vers Google Sheets
+router.post('/clients/sync', async (req, res) => {
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
+    }
+
+    const { clients } = req.body;
+    if (!clients || !Array.isArray(clients)) {
+      return res.status(400).json({ error: 'Liste de clients requise' });
+    }
+
+    const values = clients.map(client => [
+      client.id || '',
+      client.nom || '',
+      client.email || '',
+      client.telephone || '',
+      client.entreprise || '',
+      client.adresse || '',
+      client.notes || '',
+      client.apporteurId || '',
+      client.dateCreation || new Date().toISOString(),
+      client.dateModification || new Date().toISOString()
+    ]);
+
+    const header = [['ID', 'Nom', 'Email', 'Téléphone', 'Entreprise', 'Adresse', 'Notes', 'Apporteur ID', 'Date Création', 'Date Modification']];
+
+    try {
+      await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Clients!A1',
+      });
+    } catch (error) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheetId,
+        range: 'Clients!A1:J1',
+        valueInputOption: 'RAW',
+        resource: { values: header }
+      });
+    }
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: spreadsheetId,
+      range: 'Clients!A2:Z1000',
+    });
+
+    if (values.length > 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheetId,
+        range: 'Clients!A2',
+        valueInputOption: 'RAW',
+        resource: { values }
+      });
+    }
+
+    res.json({ success: true, count: clients.length });
+  } catch (error) {
+    console.error('Erreur lors de l\'écriture des clients:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Synchronisation complète (lire depuis Google Sheets et mettre à jour le CRM)
+router.post('/sync/all', async (req, res) => {
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
+    }
+
+    // Lire clients et contacts
+    const [clientsResponse, contactsResponse] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Clients!A2:Z',
+      }).catch(() => ({ data: { values: [] } })),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Contacts!A2:Z',
+      }).catch(() => ({ data: { values: [] } }))
+    ]);
+
+    const clients = (clientsResponse.data.values || []).map((row) => ({
+      id: row[0] || uuidv4(),
+      nom: row[1] || '',
+      email: row[2] || '',
+      telephone: row[3] || '',
+      entreprise: row[4] || '',
+      adresse: row[5] || '',
+      notes: row[6] || '',
+      apporteurId: row[7] || null,
+      dateCreation: row[8] || new Date().toISOString(),
+      dateModification: row[9] || new Date().toISOString()
+    })).filter(client => client.nom || client.email);
+
+    const contacts = (contactsResponse.data.values || []).map((row) => ({
+      id: row[0] || uuidv4(),
+      nom: row[1] || '',
+      prenom: row[2] || '',
+      email: row[3] || '',
+      telephone: row[4] || '',
+      poste: row[5] || '',
+      clientId: row[6] || '',
+      notes: row[7] || '',
+      dateCreation: row[8] || new Date().toISOString(),
+      dateModification: row[9] || new Date().toISOString()
+    })).filter(contact => contact.nom || contact.email);
+
+    res.json({ clients, contacts, success: true });
+  } catch (error) {
+    console.error('Erreur lors de la synchronisation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Déconnexion
+router.post('/disconnect', (req, res) => {
+  googleTokens = {};
+  spreadsheetId = null;
+  res.json({ message: 'Déconnecté avec succès' });
+});
+
+module.exports = router;
+

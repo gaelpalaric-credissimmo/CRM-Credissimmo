@@ -275,6 +275,10 @@ app.use('/api/outlook', outlookRoutes);
 const imapRoutes = require('./routes/imap');
 app.use('/api/imap', imapRoutes);
 
+// Routes Google Sheets
+const googleSheetsRoutes = require('./routes/googlesheets');
+app.use('/api/googlesheets', googleSheetsRoutes);
+
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
