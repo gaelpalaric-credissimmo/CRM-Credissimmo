@@ -359,7 +359,7 @@ function Outlook() {
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <FiMail style={{ fontSize: '3rem', color: '#667eea', marginBottom: '1rem' }} />
+            <FiMail style={{ fontSize: '3rem', color: '#DC6B2F', marginBottom: '1rem' }} />
             <p style={{ marginBottom: '1.5rem' }}>
               Connectez-vous à Outlook pour synchroniser vos contacts, emails et événements du calendrier.
             </p>
