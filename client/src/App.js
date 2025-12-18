@@ -6,7 +6,8 @@ import Clients from './components/Clients';
 import Contacts from './components/Contacts';
 import Opportunites from './components/Opportunites';
 import Outlook from './components/Outlook';
-import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX } from 'react-icons/fi';
+import Apporteurs from './components/Apporteurs';
+import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck } from 'react-icons/fi';
 
 function Navigation() {
   const location = useLocation();
@@ -17,6 +18,7 @@ function Navigation() {
     { path: '/clients', label: 'Clients', icon: FiUsers },
     { path: '/contacts', label: 'Contacts', icon: FiUser },
     { path: '/opportunites', label: 'Opportunités', icon: FiBriefcase },
+    { path: '/apporteurs', label: 'Apporteurs', icon: FiUserCheck },
     { path: '/outlook', label: 'Outlook', icon: FiMail },
   ];
 
@@ -65,6 +67,7 @@ function App() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/opportunites" element={<Opportunites />} />
+            <Route path="/apporteurs" element={<Apporteurs />} />
             <Route path="/outlook" element={<Outlook />} />
           </Routes>
         </main>

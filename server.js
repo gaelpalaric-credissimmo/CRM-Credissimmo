@@ -27,6 +27,7 @@ app.use(session({
 let clients = [];
 let contacts = [];
 let opportunites = [];
+let apporteurs = [];
 
 // Routes pour les clients
 app.get('/api/clients', (req, res) => {
@@ -42,7 +43,7 @@ app.get('/api/clients/:id', (req, res) => {
 });
 
 app.post('/api/clients', (req, res) => {
-  const { nom, email, telephone, entreprise, adresse, notes } = req.body;
+  const { nom, email, telephone, entreprise, adresse, notes, apporteurId } = req.body;
   const nouveauClient = {
     id: uuidv4(),
     nom,
@@ -51,6 +52,7 @@ app.post('/api/clients', (req, res) => {
     entreprise,
     adresse,
     notes,
+    apporteurId: apporteurId || null,
     dateCreation: new Date().toISOString(),
     dateModification: new Date().toISOString()
   };
@@ -204,6 +206,65 @@ app.get('/api/stats', (req, res) => {
       .reduce((sum, o) => sum + (o.montant || 0), 0)
   };
   res.json(stats);
+});
+
+// Routes pour les apporteurs d'affaires
+app.get('/api/apporteurs', (req, res) => {
+  res.json(apporteurs);
+});
+
+app.get('/api/apporteurs/:id', (req, res) => {
+  const apporteur = apporteurs.find(a => a.id === req.params.id);
+  if (!apporteur) {
+    return res.status(404).json({ message: 'Apporteur d\'affaires non trouvé' });
+  }
+  res.json(apporteur);
+});
+
+app.post('/api/apporteurs', (req, res) => {
+  const { nom, prenom, email, telephone, entreprise, commission, notes } = req.body;
+  const nouvelApporteur = {
+    id: uuidv4(),
+    nom,
+    prenom,
+    email,
+    telephone,
+    entreprise,
+    commission: parseFloat(commission) || 0,
+    notes,
+    dateCreation: new Date().toISOString(),
+    dateModification: new Date().toISOString()
+  };
+  apporteurs.push(nouvelApporteur);
+  res.status(201).json(nouvelApporteur);
+});
+
+app.put('/api/apporteurs/:id', (req, res) => {
+  const index = apporteurs.findIndex(a => a.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Apporteur d\'affaires non trouvé' });
+  }
+  apporteurs[index] = {
+    ...apporteurs[index],
+    ...req.body,
+    dateModification: new Date().toISOString()
+  };
+  res.json(apporteurs[index]);
+});
+
+app.delete('/api/apporteurs/:id', (req, res) => {
+  const index = apporteurs.findIndex(a => a.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Apporteur d\'affaires non trouvé' });
+  }
+  // Retirer l'apporteur des clients associés
+  clients.forEach(client => {
+    if (client.apporteurId === req.params.id) {
+      client.apporteurId = null;
+    }
+  });
+  apporteurs.splice(index, 1);
+  res.json({ message: 'Apporteur d\'affaires supprimé avec succès' });
 });
 
 // Routes Outlook (OAuth/Microsoft Graph)

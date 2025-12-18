@@ -36,6 +36,13 @@ export const deleteOpportunite = (id) => api.delete(`/opportunites/${id}`);
 // Statistiques
 export const getStats = () => api.get('/stats');
 
+// Apporteurs d'affaires
+export const getApporteurs = () => api.get('/apporteurs');
+export const getApporteur = (id) => api.get(`/apporteurs/${id}`);
+export const createApporteur = (data) => api.post('/apporteurs', data);
+export const updateApporteur = (id, data) => api.put(`/apporteurs/${id}`, data);
+export const deleteApporteur = (id) => api.delete(`/apporteurs/${id}`);
+
 // Outlook (OAuth/Microsoft Graph)
 export const getOutlookStatus = () => api.get('/outlook/status');
 export const connectOutlook = () => api.get('/outlook/auth');

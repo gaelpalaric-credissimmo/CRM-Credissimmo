@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { getClients, createClient, updateClient, deleteClient } from '../api/api';
-import { getApporteurs } from '../api/api';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserCheck } from 'react-icons/fi';
+import { getApporteurs, createApporteur, updateApporteur, deleteApporteur } from '../api/api';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiDollarSign } from 'react-icons/fi';
 
-function Clients() {
-  const [clients, setClients] = useState([]);
+function Apporteurs() {
   const [apporteurs, setApporteurs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingClient, setEditingClient] = useState(null);
+  const [editingApporteur, setEditingApporteur] = useState(null);
   const [formData, setFormData] = useState({
     nom: '',
+    prenom: '',
     email: '',
     telephone: '',
     entreprise: '',
-    adresse: '',
+    commission: '',
     notes: '',
-    apporteurId: '',
   });
 
   useEffect(() => {
-    loadClients();
     loadApporteurs();
   }, []);
 
@@ -30,15 +27,6 @@ function Clients() {
       setApporteurs(response.data);
     } catch (error) {
       console.error('Erreur lors du chargement des apporteurs:', error);
-    }
-  };
-
-  const loadClients = async () => {
-    try {
-      const response = await getClients();
-      setClients(response.data);
-    } catch (error) {
-      console.error('Erreur lors du chargement des clients:', error);
     } finally {
       setLoading(false);
     }
@@ -47,67 +35,57 @@ function Clients() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const dataToSend = {
-        ...formData,
-        apporteurId: formData.apporteurId || null
-      };
-      if (editingClient) {
-        await updateClient(editingClient.id, dataToSend);
+      if (editingApporteur) {
+        await updateApporteur(editingApporteur.id, formData);
       } else {
-        await createClient(dataToSend);
+        await createApporteur(formData);
       }
-      loadClients();
+      loadApporteurs();
       handleCloseModal();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde du client');
+      alert('Erreur lors de la sauvegarde de l\'apporteur d\'affaires');
     }
   };
 
-  const handleEdit = (client) => {
-    setEditingClient(client);
+  const handleEdit = (apporteur) => {
+    setEditingApporteur(apporteur);
     setFormData({
-      nom: client.nom || '',
-      email: client.email || '',
-      telephone: client.telephone || '',
-      entreprise: client.entreprise || '',
-      adresse: client.adresse || '',
-      notes: client.notes || '',
-      apporteurId: client.apporteurId || '',
+      nom: apporteur.nom || '',
+      prenom: apporteur.prenom || '',
+      email: apporteur.email || '',
+      telephone: apporteur.telephone || '',
+      entreprise: apporteur.entreprise || '',
+      commission: apporteur.commission || '',
+      notes: apporteur.notes || '',
     });
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet apporteur d\'affaires ?')) {
       try {
-        await deleteClient(id);
-        loadClients();
+        await deleteApporteur(id);
+        loadApporteurs();
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
-        alert('Erreur lors de la suppression du client');
+        alert('Erreur lors de la suppression de l\'apporteur d\'affaires');
       }
     }
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setEditingClient(null);
+    setEditingApporteur(null);
     setFormData({
       nom: '',
+      prenom: '',
       email: '',
       telephone: '',
       entreprise: '',
-      adresse: '',
+      commission: '',
       notes: '',
-      apporteurId: '',
     });
-  };
-
-  const getApporteurName = (apporteurId) => {
-    if (!apporteurId) return '-';
-    const apporteur = apporteurs.find(a => a.id === apporteurId);
-    return apporteur ? `${apporteur.prenom} ${apporteur.nom}` : '-';
   };
 
   if (loading) {
@@ -118,9 +96,9 @@ function Clients() {
     <div>
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Clients</h2>
+          <h2 className="card-title">Apporteurs d'affaires</h2>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <FiPlus /> Ajouter un client
+            <FiPlus /> Ajouter un apporteur
           </button>
         </div>
 
@@ -129,49 +107,47 @@ function Clients() {
             <thead>
               <tr>
                 <th>Nom</th>
+                <th>Prénom</th>
                 <th>Email</th>
                 <th>Téléphone</th>
                 <th>Entreprise</th>
-                <th>Apporteur d'affaires</th>
+                <th>Commission</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {clients.length === 0 ? (
+              {apporteurs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
-                    Aucun client trouvé
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                    Aucun apporteur d'affaires trouvé
                   </td>
                 </tr>
               ) : (
-                clients.map((client) => (
-                  <tr key={client.id}>
-                    <td>{client.nom}</td>
-                    <td>{client.email}</td>
-                    <td>{client.telephone}</td>
-                    <td>{client.entreprise}</td>
+                apporteurs.map((apporteur) => (
+                  <tr key={apporteur.id}>
+                    <td>{apporteur.nom}</td>
+                    <td>{apporteur.prenom}</td>
+                    <td>{apporteur.email}</td>
+                    <td>{apporteur.telephone}</td>
+                    <td>{apporteur.entreprise}</td>
                     <td>
-                      {client.apporteurId ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <FiUserCheck />
-                          {getApporteurName(client.apporteurId)}
-                        </span>
-                      ) : (
-                        '-'
-                      )}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <FiDollarSign />
+                        {apporteur.commission ? `${apporteur.commission}%` : '-'}
+                      </span>
                     </td>
                     <td>
                       <div className="actions">
                         <button
                           className="btn-icon"
-                          onClick={() => handleEdit(client)}
+                          onClick={() => handleEdit(apporteur)}
                           title="Modifier"
                         >
                           <FiEdit2 />
                         </button>
                         <button
                           className="btn-icon"
-                          onClick={() => handleDelete(client.id)}
+                          onClick={() => handleDelete(apporteur.id)}
                           title="Supprimer"
                         >
                           <FiTrash2 />
@@ -191,7 +167,7 @@ function Clients() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {editingClient ? 'Modifier le client' : 'Nouveau client'}
+                {editingApporteur ? 'Modifier l\'apporteur' : 'Nouvel apporteur d\'affaires'}
               </h3>
               <button className="modal-close" onClick={handleCloseModal}>
                 <FiX />
@@ -205,6 +181,15 @@ function Clients() {
                   required
                   value={formData.nom}
                   onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Prénom *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.prenom}
+                  onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
                 />
               </div>
               <div className="form-group">
@@ -232,25 +217,16 @@ function Clients() {
                 />
               </div>
               <div className="form-group">
-                <label>Adresse</label>
-                <textarea
-                  value={formData.adresse}
-                  onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                <label>Commission (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.commission}
+                  onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
+                  placeholder="0.00"
                 />
-              </div>
-              <div className="form-group">
-                <label>Apporteur d'affaires</label>
-                <select
-                  value={formData.apporteurId}
-                  onChange={(e) => setFormData({ ...formData, apporteurId: e.target.value })}
-                >
-                  <option value="">Aucun apporteur</option>
-                  {apporteurs.map((apporteur) => (
-                    <option key={apporteur.id} value={apporteur.id}>
-                      {apporteur.prenom} {apporteur.nom} {apporteur.entreprise ? `(${apporteur.entreprise})` : ''}
-                    </option>
-                  ))}
-                </select>
               </div>
               <div className="form-group">
                 <label>Notes</label>
@@ -264,7 +240,7 @@ function Clients() {
                   Annuler
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {editingClient ? 'Modifier' : 'Créer'}
+                  {editingApporteur ? 'Modifier' : 'Créer'}
                 </button>
               </div>
             </form>
@@ -275,4 +251,5 @@ function Clients() {
   );
 }
 
-export default Clients;
+export default Apporteurs;
+
