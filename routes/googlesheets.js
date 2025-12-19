@@ -37,14 +37,44 @@ const fs = require('fs');
 const path = require('path');
 const TOKENS_FILE = path.join(__dirname, '..', '.google-tokens.json');
 
-// Charger les tokens depuis le fichier au démarrage
+// Charger les tokens depuis le fichier ou les variables d'environnement
 function loadTokensFromFile() {
+  // PRIORITÉ 1 : Charger depuis les variables d'environnement (persistant sur Render)
+  if (process.env.GOOGLE_REFRESH_TOKEN) {
+    try {
+      googleTokens = {
+        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+        // Le access_token sera obtenu via refreshAccessToken
+      };
+      spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || null;
+      
+      // Obtenir un nouvel access token avec le refresh token
+      oauth2Client.setCredentials(googleTokens);
+      oauth2Client.refreshAccessToken()
+        .then((response) => {
+          googleTokens = response.credentials;
+          googleTokens.refresh_token = process.env.GOOGLE_REFRESH_TOKEN; // Conserver le refresh token
+          oauth2Client.setCredentials(googleTokens);
+          console.log('✅ Tokens Google Sheets chargés depuis les variables d\'environnement');
+          console.log(`   - Spreadsheet ID: ${spreadsheetId || 'Non configuré'}`);
+        })
+        .catch((error) => {
+          console.error('❌ Erreur lors du rafraîchissement depuis les variables d\'environnement:', error);
+          googleTokens = {};
+        });
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement depuis les variables d\'environnement:', error);
+    }
+  }
+  
+  // PRIORITÉ 2 : Charger depuis le fichier (pour développement local)
   try {
     if (fs.existsSync(TOKENS_FILE)) {
       const tokensData = fs.readFileSync(TOKENS_FILE, 'utf8');
       const data = JSON.parse(tokensData);
       googleTokens = data.tokens || {};
-      spreadsheetId = data.spreadsheetId || null;
+      spreadsheetId = data.spreadsheetId || spreadsheetId || null;
       
       if (googleTokens.access_token) {
         oauth2Client.setCredentials(googleTokens);
@@ -318,8 +348,15 @@ router.get('/callback', async (req, res) => {
     
     // Sauvegarder les tokens pour la reconnexion automatique
     saveTokensToFile();
+    
+    // Afficher le refresh token pour qu'il puisse être ajouté aux variables d'environnement sur Render
+    if (tokens.refresh_token) {
+      console.log('🔑 IMPORTANT: Ajoutez ce refresh token aux variables d\'environnement sur Render:');
+      console.log(`   GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}`);
+      console.log('   Cela permettra la reconnexion automatique même après un redéploiement.');
+    }
 
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?success=true`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?success=true&refresh_token=${tokens.refresh_token ? 'present' : 'missing'}`);
   } catch (error) {
     console.error('Erreur lors de l\'obtention du token:', error);
     const errorMsg = error.message || 'Erreur d\'authentification';

@@ -28,9 +28,16 @@ function GoogleSheets() {
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
     const error = urlParams.get('error');
+    const refreshToken = urlParams.get('refresh_token');
 
     if (success === 'true') {
       checkStatus();
+      if (refreshToken === 'present') {
+        // Afficher un message pour ajouter le refresh token aux variables d'environnement
+        setTimeout(() => {
+          alert('✅ Connexion réussie !\n\n⚠️ IMPORTANT pour la reconnexion automatique:\n\nAjoutez le refresh token aux variables d\'environnement sur Render:\n1. Allez sur Render Dashboard > Votre service > Environment\n2. Ajoutez: GOOGLE_REFRESH_TOKEN\n3. La valeur se trouve dans les logs du serveur\n\nCela permettra la reconnexion automatique même après un redéploiement.');
+        }, 1000);
+      }
       window.history.replaceState({}, document.title, '/googlesheets');
     } else if (error) {
       alert(`Erreur d'authentification: ${error}`);
