@@ -31,20 +31,31 @@ router.get('/auth', (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL;
   
   // Construire l'URL de redirection correcte
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
-    (process.env.NODE_ENV === 'production' 
-      ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
-      : 'http://localhost:5000/api/googlesheets/callback');
+  // PRIORITÉ : Utiliser GOOGLE_REDIRECT_URI si défini, sinon construire automatiquement
+  let redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  
+  if (!redirectUri) {
+    // Construction automatique si non défini
+    if (process.env.NODE_ENV === 'production') {
+      // En production, utiliser le host de la requête
+      const host = req.get('host');
+      redirectUri = `https://${host}/api/googlesheets/callback`;
+    } else {
+      redirectUri = 'http://localhost:5000/api/googlesheets/callback';
+    }
+  }
   
   // Log détaillé pour le diagnostic
   console.log('🔍 Diagnostic Google OAuth:', {
     GOOGLE_CLIENT_ID: clientId ? `✅ Présent (${clientId.substring(0, 10)}...)` : '❌ MANQUANT',
     GOOGLE_CLIENT_SECRET: clientSecret ? '✅ Présent' : '❌ MANQUANT',
-    GOOGLE_REDIRECT_URI: redirectUri || 'Non configuré (sera généré)',
+    GOOGLE_REDIRECT_URI_ENV: process.env.GOOGLE_REDIRECT_URI || 'Non défini',
+    REDIRECT_URI_UTILISEE: redirectUri,
     NODE_ENV: nodeEnv || 'Non défini',
     FRONTEND_URL: frontendUrl || 'Non configuré',
     Host: req.get('host'),
-    Protocol: req.protocol
+    Protocol: req.protocol,
+    '⚠️ IMPORTANT': 'L\'URI de redirection utilisée doit correspondre EXACTEMENT à celle dans Google Cloud Console'
   });
   
   if (!clientId || !clientSecret) {
@@ -94,6 +105,12 @@ router.get('/auth', (req, res) => {
     include_granted_scopes: true
   });
 
+  console.log('🔗 URL d\'authentification générée:', {
+    redirectUri: redirectUri,
+    authUrl: authUrl.substring(0, 100) + '...',
+    '⚠️ Vérifiez que cette URI correspond à celle dans Google Cloud Console': redirectUri
+  });
+
   res.json({ authUrl, redirectUri });
 });
 
@@ -113,10 +130,19 @@ router.get('/callback', async (req, res) => {
 
   try {
     // Reconstruire le client OAuth avec la même URI de redirection
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
-      (process.env.NODE_ENV === 'production' 
-        ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
-        : 'http://localhost:5000/api/googlesheets/callback');
+    // IMPORTANT : Utiliser exactement la même logique que dans /auth
+    let redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    
+    if (!redirectUri) {
+      if (process.env.NODE_ENV === 'production') {
+        const host = req.get('host');
+        redirectUri = `https://${host}/api/googlesheets/callback`;
+      } else {
+        redirectUri = 'http://localhost:5000/api/googlesheets/callback';
+      }
+    }
+    
+    console.log('🔄 Callback OAuth - URI de redirection utilisée:', redirectUri);
 
     const client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,

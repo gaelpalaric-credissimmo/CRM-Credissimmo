@@ -19,6 +19,7 @@ function GoogleSheets() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [configStatus, setConfigStatus] = useState(null);
+  const [redirectUriUsed, setRedirectUriUsed] = useState(null);
 
   useEffect(() => {
     checkStatus();
@@ -49,6 +50,7 @@ function GoogleSheets() {
       // Afficher les informations de configuration pour debug
       if (response.data.config) {
         setConfigStatus(response.data.config);
+        setRedirectUriUsed(response.data.config.redirectUri);
         console.log('📊 Configuration Google Sheets:', response.data.config);
         console.log('📊 État des variables:', {
           GOOGLE_CLIENT_ID: response.data.config.hasClientId ? '✅ Configuré' : '❌ MANQUANT',
@@ -56,6 +58,8 @@ function GoogleSheets() {
           GOOGLE_REDIRECT_URI: response.data.config.redirectUri || 'Non configuré',
           NODE_ENV: response.data.config.nodeEnv || 'Non défini'
         });
+        console.log('🔗 URI de redirection qui sera utilisée:', response.data.config.redirectUri);
+        console.log('⚠️ Cette URI doit correspondre EXACTEMENT à celle dans Google Cloud Console');
         
         if (!response.data.config.hasClientId || !response.data.config.hasClientSecret) {
           console.warn('⚠️ ATTENTION: Variables d\'environnement manquantes sur Render!');
@@ -88,7 +92,9 @@ function GoogleSheets() {
       if (response.data.authUrl) {
         // Afficher l'URI de redirection pour debug
         if (response.data.redirectUri) {
-          console.log('URI de redirection configurée:', response.data.redirectUri);
+          console.log('🔗 URI de redirection utilisée par le backend:', response.data.redirectUri);
+          console.log('⚠️ IMPORTANT: Cette URI doit correspondre EXACTEMENT à celle dans Google Cloud Console');
+          console.log('📋 URI à vérifier dans Google Cloud Console:', response.data.redirectUri);
         }
         window.location.href = response.data.authUrl;
       } else {
@@ -237,6 +243,36 @@ function GoogleSheets() {
               Connectez-vous à Google Sheets pour synchroniser vos données CRM.
             </p>
             
+            {/* Affichage de l'URI de redirection utilisée */}
+            {redirectUriUsed && (
+              <div style={{ 
+                marginBottom: '1.5rem', 
+                padding: '1rem', 
+                background: '#e7f3ff', 
+                borderRadius: '8px', 
+                border: '1px solid #b3d9ff'
+              }}>
+                <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#004085' }}>
+                  🔗 URI de redirection utilisée :
+                </strong>
+                <code style={{ 
+                  display: 'block', 
+                  padding: '0.5rem', 
+                  background: 'white', 
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.9rem',
+                  wordBreak: 'break-all',
+                  color: '#004085'
+                }}>
+                  {redirectUriUsed}
+                </code>
+                <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#004085', marginBottom: 0 }}>
+                  ⚠️ <strong>Important :</strong> Cette URI doit correspondre <strong>EXACTEMENT</strong> à celle dans Google Cloud Console (APIs et services > Identifiants > Votre ID client OAuth > URI de redirection autorisés)
+                </p>
+              </div>
+            )}
+
             {/* Affichage de l'état de la configuration */}
             {configStatus && (!configStatus.hasClientId || !configStatus.hasClientSecret) && (
               <div style={{ 
