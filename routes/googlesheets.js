@@ -38,34 +38,40 @@ const path = require('path');
 const TOKENS_FILE = path.join(__dirname, '..', '.google-tokens.json');
 
 // Charger les tokens depuis le fichier ou les variables d'environnement
-function loadTokensFromFile() {
+async function loadTokensFromFile() {
   // PRIORITÉ 1 : Charger depuis les variables d'environnement (persistant sur Render)
   if (process.env.GOOGLE_REFRESH_TOKEN) {
     try {
+      console.log('🔄 Tentative de connexion automatique depuis les variables d\'environnement...');
       googleTokens = {
         refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
         // Le access_token sera obtenu via refreshAccessToken
       };
-      spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || null;
+      spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || spreadsheetId || null;
       
-      // Obtenir un nouvel access token avec le refresh token
+      // Obtenir un nouvel access token avec le refresh token (de manière synchrone)
       oauth2Client.setCredentials(googleTokens);
-      oauth2Client.refreshAccessToken()
-        .then((response) => {
-          googleTokens = response.credentials;
-          googleTokens.refresh_token = process.env.GOOGLE_REFRESH_TOKEN; // Conserver le refresh token
-          oauth2Client.setCredentials(googleTokens);
-          console.log('✅ Tokens Google Sheets chargés depuis les variables d\'environnement');
-          console.log(`   - Spreadsheet ID: ${spreadsheetId || 'Non configuré'}`);
-        })
-        .catch((error) => {
-          console.error('❌ Erreur lors du rafraîchissement depuis les variables d\'environnement:', error);
-          googleTokens = {};
-        });
-      return true;
+      try {
+        const response = await oauth2Client.refreshAccessToken();
+        googleTokens = response.credentials;
+        googleTokens.refresh_token = process.env.GOOGLE_REFRESH_TOKEN; // Conserver le refresh token
+        oauth2Client.setCredentials(googleTokens);
+        console.log('✅ Connexion automatique réussie depuis les variables d\'environnement');
+        console.log(`   - Access token: Obtenu`);
+        console.log(`   - Spreadsheet ID: ${spreadsheetId || 'Non configuré'}`);
+        return true;
+      } catch (error) {
+        console.error('❌ Erreur lors du rafraîchissement depuis les variables d\'environnement:', error);
+        console.error('   Détails:', error.message);
+        googleTokens = {};
+        return false;
+      }
     } catch (error) {
       console.error('❌ Erreur lors du chargement depuis les variables d\'environnement:', error);
+      return false;
     }
+  } else {
+    console.log('ℹ️ GOOGLE_REFRESH_TOKEN non trouvé dans les variables d\'environnement');
   }
   
   // PRIORITÉ 2 : Charger depuis le fichier (pour développement local)
@@ -131,8 +137,13 @@ function saveTokensToFile() {
   }
 }
 
-// Charger les tokens au démarrage
-loadTokensFromFile();
+// Charger les tokens au démarrage (de manière asynchrone mais on log le résultat)
+(async () => {
+  const loaded = await loadTokensFromFile();
+  if (!loaded) {
+    console.log('ℹ️ Aucune connexion automatique possible - connexion manuelle nécessaire');
+  }
+})();
 
 // Route pour initier la connexion Google
 router.get('/auth', (req, res) => {
@@ -404,8 +415,8 @@ router.get('/status', async (req, res) => {
   const nodeEnv = process.env.NODE_ENV;
   const frontendUrl = process.env.FRONTEND_URL;
   
-  // Recharger les tokens depuis le fichier (au cas où ils auraient été mis à jour)
-  loadTokensFromFile();
+  // Recharger les tokens depuis le fichier ou les variables d'environnement (au cas où ils auraient été mis à jour)
+  await loadTokensFromFile();
   
   // Calculer l'URI qui sera utilisée (même logique que dans /auth)
   let redirectUri = redirectUriEnv;
