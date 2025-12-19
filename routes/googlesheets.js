@@ -45,14 +45,41 @@ function loadTokensFromFile() {
       const data = JSON.parse(tokensData);
       googleTokens = data.tokens || {};
       spreadsheetId = data.spreadsheetId || null;
-      console.log('✅ Tokens Google Sheets chargés depuis le fichier');
+      
       if (googleTokens.access_token) {
         oauth2Client.setCredentials(googleTokens);
+        console.log('✅ Tokens Google Sheets chargés depuis le fichier');
+        console.log(`   - Access token: ${googleTokens.access_token ? 'Présent' : 'Manquant'}`);
+        console.log(`   - Refresh token: ${googleTokens.refresh_token ? 'Présent' : 'Manquant'}`);
+        console.log(`   - Spreadsheet ID: ${spreadsheetId || 'Non configuré'}`);
+        
+        // Vérifier si le token est expiré
+        if (googleTokens.expiry_date && Date.now() >= googleTokens.expiry_date) {
+          console.log('⚠️ Token expiré, rafraîchissement nécessaire');
+          if (googleTokens.refresh_token) {
+            // Essayer de rafraîchir le token
+            oauth2Client.refreshAccessToken()
+              .then((response) => {
+                googleTokens = response.credentials;
+                oauth2Client.setCredentials(googleTokens);
+                saveTokensToFile();
+                console.log('✅ Token rafraîchi automatiquement au démarrage');
+              })
+              .catch((error) => {
+                console.error('❌ Erreur lors du rafraîchissement automatique:', error);
+                console.log('ℹ️ Une nouvelle connexion sera nécessaire');
+              });
+          }
+        }
+        return true;
+      } else {
+        console.log('⚠️ Fichier de tokens trouvé mais pas de access_token');
       }
-      return true;
+    } else {
+      console.log('ℹ️ Aucun fichier de tokens trouvé - connexion manuelle nécessaire');
     }
   } catch (error) {
-    console.error('Erreur lors du chargement des tokens:', error);
+    console.error('❌ Erreur lors du chargement des tokens:', error);
   }
   return false;
 }
@@ -333,12 +360,15 @@ function getAuthClient() {
 }
 
 // Vérifier le statut de connexion
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUriEnv = process.env.GOOGLE_REDIRECT_URI;
   const nodeEnv = process.env.NODE_ENV;
   const frontendUrl = process.env.FRONTEND_URL;
+  
+  // Recharger les tokens depuis le fichier (au cas où ils auraient été mis à jour)
+  loadTokensFromFile();
   
   // Calculer l'URI qui sera utilisée (même logique que dans /auth)
   let redirectUri = redirectUriEnv;
@@ -351,9 +381,42 @@ router.get('/status', (req, res) => {
     }
   }
   
+  // Vérifier si le token est valide (pas seulement présent, mais aussi non expiré)
+  let isConnected = false;
+  let tokenExpired = false;
+  
+  if (googleTokens.access_token) {
+    // Vérifier si le token est expiré
+    if (googleTokens.expiry_date && Date.now() >= googleTokens.expiry_date) {
+      tokenExpired = true;
+      // Essayer de rafraîchir le token
+      if (googleTokens.refresh_token) {
+        try {
+          oauth2Client.setCredentials(googleTokens);
+          const response = await oauth2Client.refreshAccessToken();
+          googleTokens = response.credentials;
+          oauth2Client.setCredentials(googleTokens);
+          saveTokensToFile();
+          isConnected = true;
+          console.log('✅ Token rafraîchi automatiquement lors de la vérification du statut');
+        } catch (error) {
+          console.error('❌ Erreur lors du rafraîchissement du token:', error);
+          isConnected = false;
+        }
+      } else {
+        isConnected = false;
+      }
+    } else {
+      isConnected = true;
+    }
+  }
+  
   // Log pour diagnostic
   console.log('📊 Statut Google Sheets demandé:', {
-    connected: !!googleTokens.access_token,
+    connected: isConnected,
+    hasAccessToken: !!googleTokens.access_token,
+    hasRefreshToken: !!googleTokens.refresh_token,
+    tokenExpired: tokenExpired,
     hasClientId: !!clientId,
     hasClientSecret: !!clientSecret,
     hasRedirectUriEnv: !!redirectUriEnv,
@@ -361,12 +424,14 @@ router.get('/status', (req, res) => {
     redirectUriCalculated: redirectUri,
     nodeEnv: nodeEnv,
     host: req.get('host'),
-    protocol: req.protocol
+    protocol: req.protocol,
+    spreadsheetId: spreadsheetId || 'Non configuré'
   });
   
   res.json({
-    connected: !!googleTokens.access_token,
+    connected: isConnected,
     spreadsheetId: spreadsheetId,
+    tokenExpired: tokenExpired,
     config: {
       hasClientId: !!clientId,
       hasClientSecret: !!clientSecret,
