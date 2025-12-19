@@ -128,7 +128,14 @@ router.get('/auth', (req, res) => {
       `1. Vérifiez que "${redirectUri}" est EXACTEMENT dans Google Cloud Console`,
       '2. Vérifiez que le type d\'application est "Application Web"',
       '3. Vérifiez que l\'écran de consentement OAuth est configuré',
-      '4. Consultez TROUBLESHOOTING_OAUTH_DETAILED.md pour plus d\'aide'
+      '4. Consultez TROUBLESHOOTING_OAUTH_DETAILED.md pour plus d\'aide',
+      '',
+      'Si vous avez une erreur "403 : access_denied":',
+      '1. Configurez l\'écran de consentement OAuth dans Google Cloud Console',
+      '2. APIs et services > Écran de consentement OAuth',
+      '3. Ajoutez les scopes: spreadsheets et drive.readonly',
+      '4. Si en mode "Test", ajoutez votre email dans "Utilisateurs de test"',
+      '5. Consultez CONFIGURATION_ECRAN_CONSENTEMENT.md pour le guide complet'
     ]
   });
 });
@@ -139,8 +146,20 @@ router.get('/callback', async (req, res) => {
 
   if (error) {
     const errorMsg = error_description || error;
-    console.error('Erreur OAuth:', error, error_description);
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent(errorMsg)}`);
+    console.error('❌ Erreur OAuth Callback:', error, error_description);
+    
+    // Message d'aide spécifique selon le type d'erreur
+    let helpMessage = '';
+    if (error === 'access_denied') {
+      helpMessage = 'Erreur 403 : access_denied. L\'écran de consentement OAuth n\'est probablement pas configuré. Consultez CONFIGURATION_ECRAN_CONSENTEMENT.md pour configurer l\'écran de consentement dans Google Cloud Console.';
+      console.error('📋 Solution: Configurez l\'écran de consentement OAuth dans Google Cloud Console');
+      console.error('   - APIs et services > Écran de consentement OAuth');
+      console.error('   - Ajoutez les scopes: spreadsheets et drive.readonly');
+      console.error('   - Si en mode "Test", ajoutez votre email dans "Utilisateurs de test"');
+    }
+    
+    const fullErrorMsg = errorMsg + (helpMessage ? `\n\n${helpMessage}` : '');
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?error=${encodeURIComponent(fullErrorMsg)}`);
   }
 
   if (!code) {
