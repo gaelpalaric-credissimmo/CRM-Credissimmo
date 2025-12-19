@@ -494,34 +494,34 @@ router.post('/clients/sync', async (req, res) => {
       ];
     });
 
-    // Vérifier si l'en-tête existe, sinon le créer
+    // Vérifier si l'en-tête existe dans l'onglet PSLA, sinon le créer
     try {
       await sheets.spreadsheets.values.get({
         spreadsheetId: spreadsheetId,
-        range: 'A1',
+        range: 'PSLA!A1',
       });
     } catch (error) {
       // Créer l'en-tête si la feuille est vide
       const header = [['Client', 'Étape', 'Localisation', 'Apporteur', 'Courtier', 'Décision', 'Tt Commentaire']];
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: 'A1:G1',
+        range: 'PSLA!A1:G1',
         valueInputOption: 'RAW',
         resource: { values: header }
       });
     }
 
-    // Effacer les anciennes données (sauf l'en-tête)
+    // Effacer les anciennes données (sauf l'en-tête) dans l'onglet PSLA
     await sheets.spreadsheets.values.clear({
       spreadsheetId: spreadsheetId,
-      range: 'A2:Z1000',
+      range: 'PSLA!A2:Z1000',
     });
 
-    // Écrire les nouvelles données
+    // Écrire les nouvelles données dans l'onglet PSLA
     if (values.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: 'A2',
+        range: 'PSLA!A2',
         valueInputOption: 'RAW',
         resource: { values }
       });
@@ -544,10 +544,10 @@ router.post('/sync/all', async (req, res) => {
       return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
     }
 
-    // Lire clients depuis la structure existante (première feuille)
+    // Lire clients depuis l'onglet "PSLA"
     const clientsResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
-      range: 'A2:Z',
+      range: 'PSLA!A2:Z',
     }).catch(() => ({ data: { values: [] } }));
 
     const rows = clientsResponse.data.values || [];
@@ -733,12 +733,12 @@ async function loadFromGoogleSheets() {
     const auth = getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Charger les clients depuis la première feuille (structure existante)
+    // Charger les clients depuis l'onglet "PSLA"
     let clients = [];
     try {
       const clientsResponse = await sheets.spreadsheets.values.get({
         spreadsheetId: spreadsheetId,
-        range: 'A2:Z',
+        range: 'PSLA!A2:Z',
       }).catch(() => ({ data: { values: [] } }));
 
       const rows = clientsResponse.data.values || [];
