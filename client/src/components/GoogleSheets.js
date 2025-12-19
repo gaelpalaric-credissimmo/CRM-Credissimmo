@@ -18,6 +18,7 @@ function GoogleSheets() {
   const [tempSpreadsheetId, setTempSpreadsheetId] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [configStatus, setConfigStatus] = useState(null);
 
   useEffect(() => {
     checkStatus();
@@ -47,6 +48,7 @@ function GoogleSheets() {
       
       // Afficher les informations de configuration pour debug
       if (response.data.config) {
+        setConfigStatus(response.data.config);
         console.log('Configuration Google Sheets:', response.data.config);
         if (!response.data.config.hasClientId || !response.data.config.hasClientSecret) {
           console.warn('⚠️ Variables d\'environnement manquantes:', {
@@ -200,18 +202,59 @@ function GoogleSheets() {
             <p style={{ marginBottom: '1.5rem' }}>
               Connectez-vous à Google Sheets pour synchroniser vos données CRM.
             </p>
-            <button className="btn btn-primary" onClick={handleConnect}>
+            
+            {/* Affichage de l'état de la configuration */}
+            {configStatus && (!configStatus.hasClientId || !configStatus.hasClientSecret) && (
+              <div style={{ 
+                marginBottom: '2rem', 
+                padding: '1.5rem', 
+                background: '#fff3cd', 
+                borderRadius: '8px', 
+                textAlign: 'left',
+                border: '1px solid #ffc107'
+              }}>
+                <h4 style={{ marginTop: '0', marginBottom: '1rem', color: '#856404' }}>
+                  ⚠️ Configuration manquante
+                </h4>
+                <p style={{ marginBottom: '1rem', color: '#856404' }}>
+                  Les variables d'environnement suivantes ne sont pas configurées sur Render :
+                </p>
+                <ul style={{ marginBottom: '1rem', paddingLeft: '1.5rem', color: '#856404' }}>
+                  <li style={{ marginBottom: '0.5rem' }}>
+                    <strong>GOOGLE_CLIENT_ID</strong>: {configStatus.hasClientId ? '✓ Configuré' : '✗ MANQUANT'}
+                  </li>
+                  <li style={{ marginBottom: '0.5rem' }}>
+                    <strong>GOOGLE_CLIENT_SECRET</strong>: {configStatus.hasClientSecret ? '✓ Configuré' : '✗ MANQUANT'}
+                  </li>
+                  <li style={{ marginBottom: '0.5rem' }}>
+                    <strong>GOOGLE_REDIRECT_URI</strong>: {configStatus.redirectUri || 'Non configuré'}
+                  </li>
+                </ul>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '4px', marginTop: '1rem' }}>
+                  <strong style={{ color: '#856404' }}>Pour corriger :</strong>
+                  <ol style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', color: '#856404', fontSize: '0.9rem' }}>
+                    <li>Allez sur Render > Votre service > Environment</li>
+                    <li>Ajoutez les variables manquantes</li>
+                    <li>Attendez le redéploiement automatique</li>
+                    <li>Rechargez cette page</li>
+                  </ol>
+                </div>
+              </div>
+            )}
+            
+            <button 
+              className="btn btn-primary" 
+              onClick={handleConnect}
+              disabled={configStatus && (!configStatus.hasClientId || !configStatus.hasClientSecret)}
+            >
               <FiLink /> Se connecter à Google
             </button>
-            <div style={{ marginTop: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px', textAlign: 'left', fontSize: '0.9rem' }}>
-              <strong>Vérification de la configuration :</strong>
-              <p style={{ marginTop: '0.5rem', marginBottom: '0' }}>
-                Ouvrez la console du navigateur (F12) pour voir les détails de configuration.
-              </p>
-              <p style={{ marginTop: '0.5rem', marginBottom: '0', color: '#666' }}>
-                Si les variables d'environnement sont manquantes, ajoutez-les dans Render > Environment.
-              </p>
-            </div>
+            
+            {configStatus && configStatus.hasClientId && configStatus.hasClientSecret && (
+              <div style={{ marginTop: '2rem', padding: '1rem', background: '#d4edda', borderRadius: '8px', fontSize: '0.9rem', color: '#155724' }}>
+                ✓ Configuration détectée. Vous pouvez vous connecter.
+              </div>
+            )}
           </div>
         ) : (
           <div>
