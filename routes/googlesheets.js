@@ -127,7 +127,7 @@ router.get('/prospects', async (req, res) => {
       return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
     }
 
-    // Lire la feuille "Contacts" (ou la première feuille)
+    // Lire la feuille "Prospects" (ou la première feuille)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
       range: 'Prospects!A2:Z', // A2 pour ignorer l'en-tête
@@ -164,23 +164,23 @@ router.post('/prospects/sync', async (req, res) => {
       return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
     }
 
-    const { contacts } = req.body;
-    if (!contacts || !Array.isArray(contacts)) {
-      return res.status(400).json({ error: 'Liste de contacts requise' });
+    const { prospects } = req.body;
+    if (!prospects || !Array.isArray(prospects)) {
+      return res.status(400).json({ error: 'Liste de prospects requise' });
     }
 
     // Préparer les données pour Google Sheets
-    const values = contacts.map(contact => [
-      contact.id || '',
-      contact.nom || '',
-      contact.prenom || '',
-      contact.email || '',
-      contact.telephone || '',
-      contact.poste || '',
-      contact.clientId || '',
-      contact.notes || '',
-      contact.dateCreation || new Date().toISOString(),
-      contact.dateModification || new Date().toISOString()
+    const values = prospects.map(prospect => [
+      prospect.id || '',
+      prospect.nom || '',
+      prospect.prenom || '',
+      prospect.email || '',
+      prospect.telephone || '',
+      prospect.poste || '',
+      prospect.clientId || '',
+      prospect.notes || '',
+      prospect.dateCreation || new Date().toISOString(),
+      prospect.dateModification || new Date().toISOString()
     ]);
 
     // Ajouter l'en-tête si la feuille est vide
