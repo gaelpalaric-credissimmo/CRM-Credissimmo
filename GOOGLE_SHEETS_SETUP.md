@@ -54,7 +54,7 @@ FRONTEND_URL=http://localhost:3000
 
 Votre Google Sheet doit avoir **deux feuilles** nommées exactement :
 - **Clients**
-- **Contacts**
+- **Prospects**
 
 ### Feuille "Clients"
 
@@ -70,7 +70,7 @@ Les colonnes doivent être dans cet ordre :
 9. Date Création
 10. Date Modification
 
-### Feuille "Contacts"
+### Feuille "Prospects"
 
 Les colonnes doivent être dans cet ordre :
 1. ID
@@ -89,7 +89,7 @@ Les colonnes doivent être dans cet ordre :
 1. Créez un nouveau Google Sheet
 2. Renommez la première feuille en "Clients"
 3. Ajoutez les en-têtes dans la première ligne
-4. Créez une nouvelle feuille nommée "Contacts"
+4. Créez une nouvelle feuille nommée "Prospects"
 5. Ajoutez les en-têtes dans la première ligne
 
 **Note** : Vous pouvez laisser les lignes vides, le système les remplira automatiquement.
@@ -127,7 +127,7 @@ Le Spreadsheet ID est : `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms`
 ### Export (CRM → Google Sheets)
 - Toutes les données du CRM sont écrites dans Google Sheets
 - Les anciennes données sont remplacées
-- Les feuilles "Clients" et "Contacts" sont mises à jour
+- Les feuilles "Clients" et "Prospects" sont mises à jour
 
 ### Import (Google Sheets → CRM)
 - Les données depuis Google Sheets sont chargées dans le CRM
@@ -154,7 +154,7 @@ Le Spreadsheet ID est : `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms`
 - Partagez le Google Sheet avec le compte Google utilisé
 
 ### Les données ne s'affichent pas
-- Vérifiez que les noms des feuilles sont exactement "Clients" et "Contacts"
+- Vérifiez que les noms des feuilles sont exactement "Clients" et "Prospects"
 - Vérifiez que les en-têtes sont dans le bon ordre
 - Vérifiez que le Spreadsheet ID est correct
 
