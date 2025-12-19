@@ -32,6 +32,51 @@ const oauth2Client = new google.auth.OAuth2(
 let googleTokens = {};
 let spreadsheetId = null;
 
+// Fonction pour sauvegarder les tokens dans les variables d'environnement (via fichier)
+const fs = require('fs');
+const path = require('path');
+const TOKENS_FILE = path.join(__dirname, '..', '.google-tokens.json');
+
+// Charger les tokens depuis le fichier au démarrage
+function loadTokensFromFile() {
+  try {
+    if (fs.existsSync(TOKENS_FILE)) {
+      const tokensData = fs.readFileSync(TOKENS_FILE, 'utf8');
+      const data = JSON.parse(tokensData);
+      googleTokens = data.tokens || {};
+      spreadsheetId = data.spreadsheetId || null;
+      console.log('✅ Tokens Google Sheets chargés depuis le fichier');
+      if (googleTokens.access_token) {
+        oauth2Client.setCredentials(googleTokens);
+      }
+      return true;
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des tokens:', error);
+  }
+  return false;
+}
+
+// Sauvegarder les tokens dans le fichier
+function saveTokensToFile() {
+  try {
+    const data = {
+      tokens: googleTokens,
+      spreadsheetId: spreadsheetId,
+      lastUpdate: new Date().toISOString()
+    };
+    fs.writeFileSync(TOKENS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    console.log('✅ Tokens Google Sheets sauvegardés');
+    return true;
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde des tokens:', error);
+    return false;
+  }
+}
+
+// Charger les tokens au démarrage
+loadTokensFromFile();
+
 // Route pour initier la connexion Google
 router.get('/auth', (req, res) => {
   // Vérifier que les identifiants sont configurés
@@ -243,6 +288,9 @@ router.get('/callback', async (req, res) => {
     const { tokens } = await client.getToken(code);
     googleTokens = tokens;
     oauth2Client.setCredentials(tokens);
+    
+    // Sauvegarder les tokens pour la reconnexion automatique
+    saveTokensToFile();
 
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/googlesheets?success=true`);
   } catch (error) {
@@ -257,7 +305,30 @@ function getAuthClient() {
   if (!googleTokens.access_token) {
     throw new Error('Non authentifié avec Google');
   }
+  
+  // Vérifier si le token est expiré et le rafraîchir si nécessaire
   oauth2Client.setCredentials(googleTokens);
+  
+  // Si le token est expiré, essayer de le rafraîchir avec le refresh token
+  if (googleTokens.expiry_date && Date.now() >= googleTokens.expiry_date) {
+    if (googleTokens.refresh_token) {
+      console.log('🔄 Token expiré, rafraîchissement en cours...');
+      oauth2Client.refreshAccessToken()
+        .then((response) => {
+          googleTokens = response.credentials;
+          oauth2Client.setCredentials(googleTokens);
+          saveTokensToFile();
+          console.log('✅ Token rafraîchi avec succès');
+        })
+        .catch((error) => {
+          console.error('❌ Erreur lors du rafraîchissement du token:', error);
+          throw new Error('Token expiré et impossible de le rafraîchir');
+        });
+    } else {
+      throw new Error('Token expiré et aucun refresh token disponible');
+    }
+  }
+  
   return oauth2Client;
 }
 
@@ -318,6 +389,8 @@ router.post('/config', (req, res) => {
     return res.status(400).json({ error: 'Spreadsheet ID requis' });
   }
   spreadsheetId = newSpreadsheetId;
+  // Sauvegarder le spreadsheet ID
+  saveTokensToFile();
   res.json({ success: true, spreadsheetId });
 });
 
@@ -632,6 +705,14 @@ router.post('/sync/all', async (req, res) => {
 router.post('/disconnect', (req, res) => {
   googleTokens = {};
   spreadsheetId = null;
+  // Supprimer le fichier de tokens
+  try {
+    if (fs.existsSync(TOKENS_FILE)) {
+      fs.unlinkSync(TOKENS_FILE);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression du fichier de tokens:', error);
+  }
   res.json({ message: 'Déconnecté avec succès' });
 });
 
