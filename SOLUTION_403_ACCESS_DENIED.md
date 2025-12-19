@@ -29,17 +29,33 @@ Si vous avez l'erreur **403 : access_denied** avec l'URI correcte, c'est que l'�
 7. **Domaines autorisés** : Cliquez sur **"Ajouter un domaine"** et ajoutez : `crm-credissimmo.onrender.com`
 8. Cliquez sur **"ENREGISTRER ET CONTINUER"**
 
-#### Configuration de l'Écran (Étape 2 : Scopes) :
+#### Configuration de l'Écran (Étape 2 : Scopes/Portées) :
 
 **⚠️ CRITIQUE : Cette étape est essentielle !**
 
-1. Cliquez sur **"AJOUTER OU SUPPRIMER DES SCOPES"**
-2. Dans la barre de recherche, tapez : `spreadsheets`
-3. Cochez : **`https://www.googleapis.com/auth/spreadsheets`**
-4. Dans la barre de recherche, tapez : `drive.readonly`
-5. Cochez : **`https://www.googleapis.com/auth/drive.readonly`**
-6. Cliquez sur **"Mettre à jour"** en bas
-7. Cliquez sur **"ENREGISTRER ET CONTINUER"**
+**Note :** Les scopes peuvent être appelés **"Scopes"** (en anglais) ou **"Portées"** (en français).
+
+1. Si vous ne voyez pas "Scopes" ou "Portées", vous êtes peut-être encore à l'Étape 1
+   - Remplissez les informations de base (nom, email, domaine)
+   - Cliquez sur **"ENREGISTRER ET CONTINUER"** pour aller à l'Étape 2
+
+2. Dans l'Étape 2, cherchez :
+   - Un onglet ou section appelé **"Scopes"** ou **"Portées"**
+   - Un bouton **"AJOUTER OU SUPPRIMER DES SCOPES"** ou **"AJOUTER OU SUPPRIMER DES PORTÉES"**
+
+3. Cliquez sur **"AJOUTER OU SUPPRIMER DES SCOPES"** (ou "Portées")
+
+4. Dans la barre de recherche, tapez : `spreadsheets`
+5. Cochez : **`https://www.googleapis.com/auth/spreadsheets`**
+
+6. Dans la barre de recherche, tapez : `drive.readonly`
+7. Cochez : **`https://www.googleapis.com/auth/drive.readonly`**
+
+8. Cliquez sur **"Mettre à jour"** ou **"Update"** en bas
+
+9. Cliquez sur **"ENREGISTRER ET CONTINUER"**
+
+**Si vous ne trouvez toujours pas les scopes, consultez TROUVER_SCOPES_GOOGLE_CONSOLE.md pour un guide détaillé.**
 
 #### Configuration de l'Écran (Étape 3 : Utilisateurs de test) :
 
