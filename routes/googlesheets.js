@@ -161,11 +161,28 @@ router.get('/callback', async (req, res) => {
     // Message d'aide spécifique selon le type d'erreur
     let helpMessage = '';
     if (error === 'access_denied') {
-      helpMessage = 'Erreur 403 : access_denied. L\'écran de consentement OAuth n\'est probablement pas configuré. Consultez CONFIGURATION_ECRAN_CONSENTEMENT.md pour configurer l\'écran de consentement dans Google Cloud Console.';
-      console.error('📋 Solution: Configurez l\'écran de consentement OAuth dans Google Cloud Console');
-      console.error('   - APIs et services > Écran de consentement OAuth');
-      console.error('   - Ajoutez les scopes: spreadsheets et drive.readonly');
-      console.error('   - Si en mode "Test", ajoutez votre email dans "Utilisateurs de test"');
+      helpMessage = 'Erreur 403 : access_denied.\n\n' +
+        'L\'écran de consentement OAuth n\'est probablement pas correctement configuré.\n\n' +
+        'SOLUTION :\n' +
+        '1. Allez dans Google Cloud Console > APIs et services > Écran de consentement OAuth\n' +
+        '2. Vérifiez que l\'écran est configuré (pas juste créé)\n' +
+        '3. IMPORTANT : Ajoutez les scopes suivants dans "Scopes" :\n' +
+        '   - https://www.googleapis.com/auth/spreadsheets\n' +
+        '   - https://www.googleapis.com/auth/drive.readonly\n' +
+        '4. Si en mode "Test", ajoutez votre email dans "Utilisateurs de test"\n' +
+        '5. Vérifiez que Google Sheets API et Google Drive API sont activées\n' +
+        '6. Attendez 2-3 minutes puis réessayez\n\n' +
+        'Consultez SOLUTION_403_ACCESS_DENIED.md pour le guide complet.';
+      console.error('❌ Erreur 403 : access_denied');
+      console.error('📋 Solution détaillée:');
+      console.error('   1. Google Cloud Console > APIs et services > Écran de consentement OAuth');
+      console.error('   2. Vérifiez que l\'écran est complètement configuré');
+      console.error('   3. CRITIQUE : Ajoutez les scopes dans "Scopes":');
+      console.error('      - https://www.googleapis.com/auth/spreadsheets');
+      console.error('      - https://www.googleapis.com/auth/drive.readonly');
+      console.error('   4. Si en mode "Test", ajoutez votre email dans "Utilisateurs de test"');
+      console.error('   5. Vérifiez que les APIs sont activées (Sheets et Drive)');
+      console.error('   6. Attendez 2-3 minutes puis réessayez');
     }
     
     const fullErrorMsg = errorMsg + (helpMessage ? `\n\n${helpMessage}` : '');
