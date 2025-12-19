@@ -38,10 +38,20 @@ router.get('/auth', (req, res) => {
     // Construction automatique si non défini
     if (process.env.NODE_ENV === 'production') {
       // En production, utiliser le host de la requête
+      // FORCER https:// même si req.protocol dit http
       const host = req.get('host');
-      redirectUri = `https://${host}/api/googlesheets/callback`;
+      // Enlever le port si présent (Render utilise HTTPS sans port explicite)
+      const hostWithoutPort = host.split(':')[0];
+      redirectUri = `https://${hostWithoutPort}/api/googlesheets/callback`;
     } else {
       redirectUri = 'http://localhost:5000/api/googlesheets/callback';
+    }
+  } else {
+    // Nettoyer l'URI de la variable d'environnement (enlever espaces, etc.)
+    redirectUri = redirectUri.trim();
+    // Enlever le trailing slash si présent
+    if (redirectUri.endsWith('/')) {
+      redirectUri = redirectUri.slice(0, -1);
     }
   }
   
@@ -174,13 +184,28 @@ router.get('/callback', async (req, res) => {
     if (!redirectUri) {
       if (process.env.NODE_ENV === 'production') {
         const host = req.get('host');
-        redirectUri = `https://${host}/api/googlesheets/callback`;
+        // Enlever le port si présent
+        const hostWithoutPort = host.split(':')[0];
+        redirectUri = `https://${hostWithoutPort}/api/googlesheets/callback`;
       } else {
         redirectUri = 'http://localhost:5000/api/googlesheets/callback';
+      }
+    } else {
+      // Nettoyer l'URI
+      redirectUri = redirectUri.trim();
+      if (redirectUri.endsWith('/')) {
+        redirectUri = redirectUri.slice(0, -1);
       }
     }
     
     console.log('🔄 Callback OAuth - URI de redirection utilisée:', redirectUri);
+    console.log('🔄 Callback OAuth - Détails:', {
+      redirectUriEnv: process.env.GOOGLE_REDIRECT_URI || 'Non défini',
+      redirectUriCalculated: redirectUri,
+      host: req.get('host'),
+      protocol: req.protocol,
+      nodeEnv: process.env.NODE_ENV
+    });
 
     const client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -213,18 +238,32 @@ function getAuthClient() {
 router.get('/status', (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  const redirectUriEnv = process.env.GOOGLE_REDIRECT_URI;
   const nodeEnv = process.env.NODE_ENV;
   const frontendUrl = process.env.FRONTEND_URL;
+  
+  // Calculer l'URI qui sera utilisée (même logique que dans /auth)
+  let redirectUri = redirectUriEnv;
+  if (!redirectUri) {
+    if (nodeEnv === 'production') {
+      const host = req.get('host');
+      redirectUri = `https://${host}/api/googlesheets/callback`;
+    } else {
+      redirectUri = 'http://localhost:5000/api/googlesheets/callback';
+    }
+  }
   
   // Log pour diagnostic
   console.log('📊 Statut Google Sheets demandé:', {
     connected: !!googleTokens.access_token,
     hasClientId: !!clientId,
     hasClientSecret: !!clientSecret,
-    hasRedirectUri: !!redirectUri,
+    hasRedirectUriEnv: !!redirectUriEnv,
+    redirectUriEnv: redirectUriEnv || 'Non défini',
+    redirectUriCalculated: redirectUri,
     nodeEnv: nodeEnv,
-    host: req.get('host')
+    host: req.get('host'),
+    protocol: req.protocol
   });
   
   res.json({
@@ -233,12 +272,14 @@ router.get('/status', (req, res) => {
     config: {
       hasClientId: !!clientId,
       hasClientSecret: !!clientSecret,
-      hasRedirectUri: !!redirectUri,
-      redirectUri: redirectUri || (nodeEnv === 'production' 
-        ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
-        : 'http://localhost:5000/api/googlesheets/callback'),
+      hasRedirectUri: !!redirectUriEnv,
+      redirectUri: redirectUri,
+      redirectUriEnv: redirectUriEnv || null,
       nodeEnv: nodeEnv || 'Non défini',
-      frontendUrl: frontendUrl || 'Non configuré'
+      frontendUrl: frontendUrl || 'Non configuré',
+      host: req.get('host'),
+      protocol: req.protocol,
+      clientId: clientId ? `${clientId.substring(0, 20)}...` : null
     }
   });
 });
