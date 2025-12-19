@@ -115,7 +115,14 @@ function getAuthClient() {
 router.get('/status', (req, res) => {
   res.json({
     connected: !!googleTokens.access_token,
-    spreadsheetId: spreadsheetId
+    spreadsheetId: spreadsheetId,
+    config: {
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI || 'non configuré',
+      nodeEnv: process.env.NODE_ENV
+    }
   });
 });
 

@@ -44,6 +44,18 @@ function GoogleSheets() {
         setSpreadsheetId(response.data.spreadsheetId);
         setTempSpreadsheetId(response.data.spreadsheetId);
       }
+      
+      // Afficher les informations de configuration pour debug
+      if (response.data.config) {
+        console.log('Configuration Google Sheets:', response.data.config);
+        if (!response.data.config.hasClientId || !response.data.config.hasClientSecret) {
+          console.warn('⚠️ Variables d\'environnement manquantes:', {
+            GOOGLE_CLIENT_ID: response.data.config.hasClientId ? '✓' : '✗',
+            GOOGLE_CLIENT_SECRET: response.data.config.hasClientSecret ? '✓' : '✗',
+            GOOGLE_REDIRECT_URI: response.data.config.redirectUri
+          });
+        }
+      }
     } catch (error) {
       console.error('Erreur lors de la vérification du statut:', error);
       setStatus({ connected: false, loading: false });
@@ -191,6 +203,15 @@ function GoogleSheets() {
             <button className="btn btn-primary" onClick={handleConnect}>
               <FiLink /> Se connecter à Google
             </button>
+            <div style={{ marginTop: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px', textAlign: 'left', fontSize: '0.9rem' }}>
+              <strong>Vérification de la configuration :</strong>
+              <p style={{ marginTop: '0.5rem', marginBottom: '0' }}>
+                Ouvrez la console du navigateur (F12) pour voir les détails de configuration.
+              </p>
+              <p style={{ marginTop: '0.5rem', marginBottom: '0', color: '#666' }}>
+                Si les variables d'environnement sont manquantes, ajoutez-les dans Render > Environment.
+              </p>
+            </div>
           </div>
         ) : (
           <div>
