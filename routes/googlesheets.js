@@ -107,11 +107,30 @@ router.get('/auth', (req, res) => {
 
   console.log('🔗 URL d\'authentification générée:', {
     redirectUri: redirectUri,
-    authUrl: authUrl.substring(0, 100) + '...',
-    '⚠️ Vérifiez que cette URI correspond à celle dans Google Cloud Console': redirectUri
+    clientId: clientId ? `${clientId.substring(0, 20)}...` : 'MANQUANT',
+    authUrl: authUrl.substring(0, 150) + '...',
+    '⚠️ Vérifiez que cette URI correspond EXACTEMENT à celle dans Google Cloud Console': redirectUri,
+    '📋 Instructions': [
+      '1. Allez dans Google Cloud Console > APIs et services > Identifiants',
+      '2. Cliquez sur votre ID client OAuth',
+      `3. Vérifiez que l\'URI "${redirectUri}" est dans "URI de redirection autorisés"`,
+      '4. Vérifiez que le type d\'application est "Application Web"',
+      '5. Vérifiez que l\'écran de consentement OAuth est configuré'
+    ]
   });
 
-  res.json({ authUrl, redirectUri });
+  res.json({ 
+    authUrl, 
+    redirectUri,
+    clientId: clientId ? `${clientId.substring(0, 20)}...` : null,
+    instructions: [
+      'Si vous avez une erreur "redirect_uri_mismatch":',
+      `1. Vérifiez que "${redirectUri}" est EXACTEMENT dans Google Cloud Console`,
+      '2. Vérifiez que le type d\'application est "Application Web"',
+      '3. Vérifiez que l\'écran de consentement OAuth est configuré',
+      '4. Consultez TROUBLESHOOTING_OAUTH_DETAILED.md pour plus d\'aide'
+    ]
+  });
 });
 
 // Callback après authentification
