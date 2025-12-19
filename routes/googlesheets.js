@@ -117,8 +117,8 @@ router.post('/config', (req, res) => {
   res.json({ success: true, spreadsheetId });
 });
 
-// Lire les contacts depuis Google Sheets
-router.get('/contacts', async (req, res) => {
+// Lire les prospects depuis Google Sheets
+router.get('/prospects', async (req, res) => {
   try {
     const auth = getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
@@ -130,11 +130,11 @@ router.get('/contacts', async (req, res) => {
     // Lire la feuille "Contacts" (ou la première feuille)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
-      range: 'Contacts!A2:Z', // A2 pour ignorer l'en-tête
+      range: 'Prospects!A2:Z', // A2 pour ignorer l'en-tête
     });
 
     const rows = response.data.values || [];
-    const contacts = rows.map((row, index) => ({
+    const prospects = rows.map((row, index) => ({
       id: row[0] || uuidv4(),
       nom: row[1] || '',
       prenom: row[2] || '',
@@ -145,17 +145,17 @@ router.get('/contacts', async (req, res) => {
       notes: row[7] || '',
       dateCreation: row[8] || new Date().toISOString(),
       dateModification: row[9] || new Date().toISOString()
-    })).filter(contact => contact.nom || contact.email); // Filtrer les lignes vides
+    })).filter(prospect => prospect.nom || prospect.email); // Filtrer les lignes vides
 
-    res.json(contacts);
+    res.json(prospects);
   } catch (error) {
-    console.error('Erreur lors de la lecture des contacts:', error);
+    console.error('Erreur lors de la lecture des prospects:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Écrire les contacts vers Google Sheets
-router.post('/contacts/sync', async (req, res) => {
+// Écrire les prospects vers Google Sheets
+router.post('/prospects/sync', async (req, res) => {
   try {
     const auth = getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
@@ -190,13 +190,13 @@ router.post('/contacts/sync', async (req, res) => {
     try {
       await sheets.spreadsheets.values.get({
         spreadsheetId: spreadsheetId,
-        range: 'Contacts!A1',
+        range: 'Prospects!A1',
       });
     } catch (error) {
       // Créer la feuille avec l'en-tête
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: 'Contacts!A1:J1',
+        range: 'Prospects!A1:J1',
         valueInputOption: 'RAW',
         resource: { values: header }
       });
@@ -205,22 +205,22 @@ router.post('/contacts/sync', async (req, res) => {
     // Effacer les anciennes données (sauf l'en-tête)
     await sheets.spreadsheets.values.clear({
       spreadsheetId: spreadsheetId,
-      range: 'Contacts!A2:Z1000',
+      range: 'Prospects!A2:Z1000',
     });
 
     // Écrire les nouvelles données
     if (values.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: 'Contacts!A2',
+        range: 'Prospects!A2',
         valueInputOption: 'RAW',
         resource: { values }
       });
     }
 
-    res.json({ success: true, count: contacts.length });
+    res.json({ success: true, count: prospects.length });
   } catch (error) {
-    console.error('Erreur lors de l\'écriture des contacts:', error);
+    console.error('Erreur lors de l\'écriture des prospects:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -336,15 +336,15 @@ router.post('/sync/all', async (req, res) => {
       return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
     }
 
-    // Lire clients et contacts
-    const [clientsResponse, contactsResponse] = await Promise.all([
+    // Lire clients et prospects
+    const [clientsResponse, prospectsResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: spreadsheetId,
         range: 'Clients!A2:Z',
       }).catch(() => ({ data: { values: [] } })),
       sheets.spreadsheets.values.get({
         spreadsheetId: spreadsheetId,
-        range: 'Contacts!A2:Z',
+        range: 'Prospects!A2:Z',
       }).catch(() => ({ data: { values: [] } }))
     ]);
 
@@ -361,7 +361,7 @@ router.post('/sync/all', async (req, res) => {
       dateModification: row[9] || new Date().toISOString()
     })).filter(client => client.nom || client.email);
 
-    const contacts = (contactsResponse.data.values || []).map((row) => ({
+    const prospects = (prospectsResponse.data.values || []).map((row) => ({
       id: row[0] || uuidv4(),
       nom: row[1] || '',
       prenom: row[2] || '',
@@ -372,9 +372,9 @@ router.post('/sync/all', async (req, res) => {
       notes: row[7] || '',
       dateCreation: row[8] || new Date().toISOString(),
       dateModification: row[9] || new Date().toISOString()
-    })).filter(contact => contact.nom || contact.email);
+    })).filter(prospect => prospect.nom || prospect.email);
 
-    res.json({ clients, contacts, success: true });
+    res.json({ clients, prospects, success: true });
   } catch (error) {
     console.error('Erreur lors de la synchronisation:', error);
     res.status(500).json({ error: error.message });

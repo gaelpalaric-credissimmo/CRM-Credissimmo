@@ -4,12 +4,12 @@ import {
   getGoogleSheetsStatus, 
   configGoogleSheets,
   syncClientsToSheets,
-  syncContactsToSheets,
+  syncProspectsToSheets,
   syncAllFromSheets,
   disconnectGoogleSheets
 } from '../api/api';
 import { getClients } from '../api/api';
-import { getContacts } from '../api/api';
+import { getProspects } from '../api/api';
 import { FiLink, FiLogOut, FiRefreshCw, FiCheckCircle, FiXCircle, FiUpload, FiDownload, FiSettings } from 'react-icons/fi';
 
 function GoogleSheets() {
@@ -90,20 +90,20 @@ function GoogleSheets() {
     setSyncResult(null);
     try {
       // Récupérer les données du CRM
-      const [clientsResponse, contactsResponse] = await Promise.all([
+      const [clientsResponse, prospectsResponse] = await Promise.all([
         getClients(),
-        getContacts()
+        getProspects()
       ]);
 
       // Synchroniser vers Google Sheets
       await Promise.all([
         syncClientsToSheets(clientsResponse.data),
-        syncContactsToSheets(contactsResponse.data)
+        syncProspectsToSheets(prospectsResponse.data)
       ]);
 
       setSyncResult({
         success: true,
-        message: `Synchronisation réussie : ${clientsResponse.data.length} clients et ${contactsResponse.data.length} contacts exportés vers Google Sheets`
+        message: `Synchronisation réussie : ${clientsResponse.data.length} clients et ${prospectsResponse.data.length} prospects exportés vers Google Sheets`
       });
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);
@@ -123,7 +123,7 @@ function GoogleSheets() {
       const response = await syncAllFromSheets();
       setSyncResult({
         success: true,
-        message: `Synchronisation réussie : ${response.data.clients.length} clients et ${response.data.contacts.length} contacts importés depuis Google Sheets`
+        message: `Synchronisation réussie : ${response.data.clients.length} clients et ${response.data.prospects.length} prospects importés depuis Google Sheets`
       });
       
       // Recharger la page pour voir les nouvelles données
@@ -279,7 +279,7 @@ function GoogleSheets() {
                 <li>Utilisez "Importer depuis Google Sheets" pour charger les données depuis Google Sheets vers le CRM</li>
               </ol>
               <p style={{ marginTop: '1rem', fontWeight: 'bold' }}>
-                Note : Le Google Sheet doit avoir deux feuilles nommées "Clients" et "Contacts" avec les en-têtes appropriés.
+                Note : Le Google Sheet doit avoir deux feuilles nommées "Clients" et "Prospects" avec les en-têtes appropriés.
               </p>
             </div>
           </div>

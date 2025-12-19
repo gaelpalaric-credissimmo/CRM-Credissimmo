@@ -19,12 +19,12 @@ export const createClient = (data) => api.post('/clients', data);
 export const updateClient = (id, data) => api.put(`/clients/${id}`, data);
 export const deleteClient = (id) => api.delete(`/clients/${id}`);
 
-// Contacts
-export const getContacts = () => api.get('/contacts');
-export const getContact = (id) => api.get(`/contacts/${id}`);
-export const createContact = (data) => api.post('/contacts', data);
-export const updateContact = (id, data) => api.put(`/contacts/${id}`, data);
-export const deleteContact = (id) => api.delete(`/contacts/${id}`);
+// Prospects
+export const getProspects = () => api.get('/prospects');
+export const getProspect = (id) => api.get(`/prospects/${id}`);
+export const createProspect = (data) => api.post('/prospects', data);
+export const updateProspect = (id, data) => api.put(`/prospects/${id}`, data);
+export const deleteProspect = (id) => api.delete(`/prospects/${id}`);
 
 // Opportunités
 export const getOpportunites = () => api.get('/opportunites');
@@ -62,7 +62,7 @@ export const connectGoogleSheets = () => api.get('/googlesheets/auth');
 export const getGoogleSheetsStatus = () => api.get('/googlesheets/status');
 export const configGoogleSheets = (spreadsheetId) => api.post('/googlesheets/config', { spreadsheetId });
 export const syncClientsToSheets = (clients) => api.post('/googlesheets/clients/sync', { clients });
-export const syncContactsToSheets = (contacts) => api.post('/googlesheets/contacts/sync', { contacts });
+export const syncProspectsToSheets = (prospects) => api.post('/googlesheets/prospects/sync', { prospects });
 export const syncAllFromSheets = () => api.post('/googlesheets/sync/all');
 export const disconnectGoogleSheets = () => api.post('/googlesheets/disconnect');
 

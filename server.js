@@ -25,7 +25,7 @@ app.use(session({
 
 // Stockage en mémoire (à remplacer par une vraie base de données en production)
 let clients = [];
-let contacts = [];
+let prospects = [];
 let opportunites = [];
 let apporteurs = [];
 
@@ -82,22 +82,22 @@ app.delete('/api/clients/:id', (req, res) => {
   res.json({ message: 'Client supprimé avec succès' });
 });
 
-// Routes pour les contacts
-app.get('/api/contacts', (req, res) => {
-  res.json(contacts);
+// Routes pour les prospects
+app.get('/api/prospects', (req, res) => {
+  res.json(prospects);
 });
 
-app.get('/api/contacts/:id', (req, res) => {
-  const contact = contacts.find(c => c.id === req.params.id);
-  if (!contact) {
-    return res.status(404).json({ message: 'Contact non trouvé' });
+app.get('/api/prospects/:id', (req, res) => {
+  const prospect = prospects.find(p => p.id === req.params.id);
+  if (!prospect) {
+    return res.status(404).json({ message: 'Prospect non trouvé' });
   }
-  res.json(contact);
+  res.json(prospect);
 });
 
-app.post('/api/contacts', (req, res) => {
+app.post('/api/prospects', (req, res) => {
   const { nom, prenom, email, telephone, poste, clientId, notes } = req.body;
-  const nouveauContact = {
+  const nouveauProspect = {
     id: uuidv4(),
     nom,
     prenom,
@@ -109,30 +109,30 @@ app.post('/api/contacts', (req, res) => {
     dateCreation: new Date().toISOString(),
     dateModification: new Date().toISOString()
   };
-  contacts.push(nouveauContact);
-  res.status(201).json(nouveauContact);
+  prospects.push(nouveauProspect);
+  res.status(201).json(nouveauProspect);
 });
 
-app.put('/api/contacts/:id', (req, res) => {
-  const index = contacts.findIndex(c => c.id === req.params.id);
+app.put('/api/prospects/:id', (req, res) => {
+  const index = prospects.findIndex(p => p.id === req.params.id);
   if (index === -1) {
-    return res.status(404).json({ message: 'Contact non trouvé' });
+    return res.status(404).json({ message: 'Prospect non trouvé' });
   }
-  contacts[index] = {
-    ...contacts[index],
+  prospects[index] = {
+    ...prospects[index],
     ...req.body,
     dateModification: new Date().toISOString()
   };
-  res.json(contacts[index]);
+  res.json(prospects[index]);
 });
 
-app.delete('/api/contacts/:id', (req, res) => {
-  const index = contacts.findIndex(c => c.id === req.params.id);
+app.delete('/api/prospects/:id', (req, res) => {
+  const index = prospects.findIndex(p => p.id === req.params.id);
   if (index === -1) {
-    return res.status(404).json({ message: 'Contact non trouvé' });
+    return res.status(404).json({ message: 'Prospect non trouvé' });
   }
-  contacts.splice(index, 1);
-  res.json({ message: 'Contact supprimé avec succès' });
+  prospects.splice(index, 1);
+  res.json({ message: 'Prospect supprimé avec succès' });
 });
 
 // Routes pour les opportunités
@@ -192,7 +192,7 @@ app.delete('/api/opportunites/:id', (req, res) => {
 app.get('/api/stats', (req, res) => {
   const stats = {
     totalClients: clients.length,
-    totalContacts: contacts.length,
+    totalProspects: prospects.length,
     totalOpportunites: opportunites.length,
     opportunitesParStatut: {
       nouvelle: opportunites.filter(o => o.statut === 'nouvelle').length,

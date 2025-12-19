@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import './App.css';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
-import Contacts from './components/Contacts';
+import Prospects from './components/Prospects';
 import Opportunites from './components/Opportunites';
 import Outlook from './components/Outlook';
 import Apporteurs from './components/Apporteurs';
@@ -32,7 +32,7 @@ function Navigation() {
   const navItems = [
     { path: '/', label: 'Tableau de bord', icon: FiHome },
     { path: '/clients', label: 'Clients', icon: FiUsers },
-    { path: '/contacts', label: 'Contacts', icon: FiUser },
+    { path: '/prospects', label: 'Prospects', icon: FiUser },
     { path: '/opportunites', label: 'Opportunités', icon: FiBriefcase },
     { path: '/apporteurs', label: 'Apporteurs', icon: FiUserCheck },
   ];
@@ -119,7 +119,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/clients" element={<Clients />} />
-            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/prospects" element={<Prospects />} />
             <Route path="/opportunites" element={<Opportunites />} />
             <Route path="/apporteurs" element={<Apporteurs />} />
             <Route path="/googlesheets" element={<GoogleSheets />} />

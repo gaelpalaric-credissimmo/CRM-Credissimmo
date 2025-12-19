@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getContacts, getClients, createContact, updateContact, deleteContact } from '../api/api';
+import { getProspects, getClients, createProspect, updateProspect, deleteProspect } from '../api/api';
 import { FiPlus, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 
-function Contacts() {
-  const [contacts, setContacts] = useState([]);
+function Prospects() {
+  const [prospects, setProspects] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingContact, setEditingContact] = useState(null);
+  const [editingProspect, setEditingProspect] = useState(null);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -24,11 +24,11 @@ function Contacts() {
 
   const loadData = async () => {
     try {
-      const [contactsRes, clientsRes] = await Promise.all([
-        getContacts(),
+      const [prospectsRes, clientsRes] = await Promise.all([
+        getProspects(),
         getClients(),
       ]);
-      setContacts(contactsRes.data);
+      setProspects(prospectsRes.data);
       setClients(clientsRes.data);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
@@ -45,48 +45,48 @@ function Contacts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (editingContact) {
-        await updateContact(editingContact.id, formData);
+      if (editingProspect) {
+        await updateProspect(editingProspect.id, formData);
       } else {
-        await createContact(formData);
+        await createProspect(formData);
       }
       loadData();
       handleCloseModal();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde du contact');
+      alert('Erreur lors de la sauvegarde du prospect');
     }
   };
 
-  const handleEdit = (contact) => {
-    setEditingContact(contact);
+  const handleEdit = (prospect) => {
+    setEditingProspect(prospect);
     setFormData({
-      nom: contact.nom || '',
-      prenom: contact.prenom || '',
-      email: contact.email || '',
-      telephone: contact.telephone || '',
-      poste: contact.poste || '',
-      clientId: contact.clientId || '',
-      notes: contact.notes || '',
+      nom: prospect.nom || '',
+      prenom: prospect.prenom || '',
+      email: prospect.email || '',
+      telephone: prospect.telephone || '',
+      poste: prospect.poste || '',
+      clientId: prospect.clientId || '',
+      notes: prospect.notes || '',
     });
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce prospect ?')) {
       try {
-        await deleteContact(id);
+        await deleteProspect(id);
         loadData();
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
-        alert('Erreur lors de la suppression du contact');
+        alert('Erreur lors de la suppression du prospect');
       }
     }
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setEditingContact(null);
+    setEditingProspect(null);
     setFormData({
       nom: '',
       prenom: '',
@@ -106,9 +106,9 @@ function Contacts() {
     <div>
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Contacts</h2>
+          <h2 className="card-title">Prospects</h2>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <FiPlus /> Ajouter un contact
+            <FiPlus /> Ajouter un prospect
           </button>
         </div>
 
@@ -126,33 +126,33 @@ function Contacts() {
               </tr>
             </thead>
             <tbody>
-              {contacts.length === 0 ? (
+              {prospects.length === 0 ? (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                    Aucun contact trouvé
+                    Aucun prospect trouvé
                   </td>
                 </tr>
               ) : (
-                contacts.map((contact) => (
-                  <tr key={contact.id}>
-                    <td>{contact.nom}</td>
-                    <td>{contact.prenom}</td>
-                    <td>{contact.email}</td>
-                    <td>{contact.telephone}</td>
-                    <td>{contact.poste}</td>
-                    <td>{getClientName(contact.clientId)}</td>
+                prospects.map((prospect) => (
+                  <tr key={prospect.id}>
+                    <td>{prospect.nom}</td>
+                    <td>{prospect.prenom}</td>
+                    <td>{prospect.email}</td>
+                    <td>{prospect.telephone}</td>
+                    <td>{prospect.poste}</td>
+                    <td>{getClientName(prospect.clientId)}</td>
                     <td>
                       <div className="actions">
                         <button
                           className="btn-icon"
-                          onClick={() => handleEdit(contact)}
+                          onClick={() => handleEdit(prospect)}
                           title="Modifier"
                         >
                           <FiEdit2 />
                         </button>
                         <button
                           className="btn-icon"
-                          onClick={() => handleDelete(contact.id)}
+                          onClick={() => handleDelete(prospect.id)}
                           title="Supprimer"
                         >
                           <FiTrash2 />
@@ -172,7 +172,7 @@ function Contacts() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {editingContact ? 'Modifier le contact' : 'Nouveau contact'}
+                {editingProspect ? 'Modifier le prospect' : 'Nouveau prospect'}
               </h3>
               <button className="modal-close" onClick={handleCloseModal}>
                 <FiX />
@@ -257,4 +257,4 @@ function Contacts() {
   );
 }
 
-export default Contacts;
+export default Prospects;

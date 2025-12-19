@@ -52,10 +52,10 @@ function Dashboard() {
         </div>
 
         <div className="stat-card success">
-          <div className="stat-label">Total Contacts</div>
+          <div className="stat-label">Total Prospects</div>
           <div className="stat-value">
             <FiUser style={{ marginRight: '0.5rem' }} />
-            {stats.totalContacts}
+            {stats.totalProspects}
           </div>
         </div>
 
