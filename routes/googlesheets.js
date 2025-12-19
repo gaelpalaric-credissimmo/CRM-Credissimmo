@@ -970,9 +970,21 @@ async function syncToGoogleSheets(clientsData, prospectsData) {
 
 // Fonction pour charger les données depuis Google Sheets (appelée depuis server.js)
 async function loadFromGoogleSheets() {
+  // Essayer de charger les tokens si pas encore chargés
+  if (!googleTokens.access_token && process.env.GOOGLE_REFRESH_TOKEN) {
+    console.log('🔄 Tentative de reconnexion automatique avant chargement...');
+    await loadTokensFromFile();
+  }
+  
   // Vérifier que Google Sheets est connecté et configuré
   if (!googleTokens.access_token || !spreadsheetId) {
     console.log('⚠️ Google Sheets non connecté ou non configuré - chargement ignoré');
+    if (!process.env.GOOGLE_REFRESH_TOKEN) {
+      console.log('   ℹ️ GOOGLE_REFRESH_TOKEN non trouvé dans les variables d\'environnement');
+    }
+    if (!spreadsheetId) {
+      console.log('   ℹ️ Spreadsheet ID non configuré');
+    }
     return { success: false, reason: 'not_connected', clients: [], prospects: [] };
   }
 
