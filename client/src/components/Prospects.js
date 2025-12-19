@@ -246,7 +246,7 @@ function Prospects() {
                   Annuler
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {editingContact ? 'Modifier' : 'Créer'}
+                  {editingProspect ? 'Modifier' : 'Créer'}
                 </button>
               </div>
             </form>
