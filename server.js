@@ -305,6 +305,7 @@ app.use('/api/imap', imapRoutes);
 // Routes Google Sheets
 const googleSheetsRoutes = require('./routes/googlesheets');
 const syncToGoogleSheets = googleSheetsRoutes.syncToGoogleSheets;
+const loadFromGoogleSheets = googleSheetsRoutes.loadFromGoogleSheets;
 
 // Injecter le store d'apporteurs dans googlesheets pour la synchronisation
 googleSheetsRoutes.setApporteursStore(() => apporteurs);
@@ -321,6 +322,22 @@ async function autoSyncToGoogleSheets() {
   }
 }
 
+// Fonction pour charger les données depuis Google Sheets au démarrage
+async function loadDataFromGoogleSheets() {
+  try {
+    const result = await loadFromGoogleSheets();
+    if (result.success && (result.clients.length > 0 || result.prospects.length > 0)) {
+      clients = result.clients;
+      prospects = result.prospects;
+      console.log(`📥 Données chargées depuis Google Sheets : ${clients.length} clients, ${prospects.length} prospects`);
+    } else if (result.reason === 'not_connected') {
+      console.log('ℹ️ Google Sheets non connecté - démarrage avec données vides');
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des données depuis Google Sheets:', error);
+  }
+}
+
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
@@ -331,6 +348,15 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur CRM démarré sur le port ${PORT}`);
+// Charger les données depuis Google Sheets au démarrage (si connecté)
+loadDataFromGoogleSheets().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Serveur CRM démarré sur le port ${PORT}`);
+  });
+}).catch((error) => {
+  console.error('Erreur lors du chargement initial:', error);
+  // Démarrer quand même le serveur même si le chargement échoue
+  app.listen(PORT, () => {
+    console.log(`🚀 Serveur CRM démarré sur le port ${PORT} (sans chargement depuis Google Sheets)`);
+  });
 });

@@ -721,7 +721,90 @@ async function syncToGoogleSheets(clientsData, prospectsData) {
   }
 }
 
-// Exporter la fonction pour qu'elle soit accessible depuis server.js
+// Fonction pour charger les données depuis Google Sheets (appelée depuis server.js)
+async function loadFromGoogleSheets() {
+  // Vérifier que Google Sheets est connecté et configuré
+  if (!googleTokens.access_token || !spreadsheetId) {
+    console.log('⚠️ Google Sheets non connecté ou non configuré - chargement ignoré');
+    return { success: false, reason: 'not_connected', clients: [], prospects: [] };
+  }
+
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Charger les clients depuis la première feuille (structure existante)
+    let clients = [];
+    try {
+      const clientsResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'A2:Z',
+      }).catch(() => ({ data: { values: [] } }));
+
+      const rows = clientsResponse.data.values || [];
+      clients = rows.map((row) => {
+        // Mapper la structure existante : Client | Étape | Localisation | Apporteur | Courtier | Décision | Commentaire
+        const nomComplet = row[0] || '';
+        const [prenom, ...nomParts] = nomComplet.split(' ');
+        const nom = nomParts.join(' ') || prenom;
+        
+        return {
+          id: uuidv4(),
+          nom: nom || nomComplet,
+          prenom: prenom || '',
+          email: '',
+          telephone: '',
+          entreprise: '',
+          adresse: row[2] || '', // Localisation
+          notes: row[6] || '', // Commentaire
+          apporteurId: null, // Sera mappé depuis Apporteur
+          apporteurNom: row[3] || '', // Apporteur
+          etape: row[1] || '', // Étape
+          courtier: row[4] || '', // Courtier
+          decision: row[5] || '', // Décision
+          dateCreation: new Date().toISOString(),
+          dateModification: new Date().toISOString()
+        };
+      }).filter(client => client.nom);
+    } catch (error) {
+      console.error('Erreur lors du chargement des clients:', error);
+    }
+
+    // Charger les prospects depuis la feuille "Prospects"
+    let prospects = [];
+    try {
+      const prospectsResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Prospects!A2:Z',
+      }).catch(() => ({ data: { values: [] } }));
+
+      const rows = prospectsResponse.data.values || [];
+      prospects = rows.map((row) => ({
+        id: row[0] || uuidv4(),
+        nom: row[1] || '',
+        prenom: row[2] || '',
+        email: row[3] || '',
+        telephone: row[4] || '',
+        poste: row[5] || '',
+        clientId: row[6] || '',
+        notes: row[7] || '',
+        dateCreation: row[8] || new Date().toISOString(),
+        dateModification: row[9] || new Date().toISOString()
+      })).filter(prospect => prospect.nom || prospect.email);
+    } catch (error) {
+      console.error('Erreur lors du chargement des prospects:', error);
+    }
+
+    console.log(`✅ Chargement depuis Google Sheets : ${clients.length} clients, ${prospects.length} prospects`);
+    return { success: true, clients, prospects };
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement depuis Google Sheets:', error);
+    return { success: false, error: error.message, clients: [], prospects: [] };
+  }
+}
+
+// Exporter les fonctions pour qu'elles soient accessibles depuis server.js
 module.exports = router;
 module.exports.syncToGoogleSheets = syncToGoogleSheets;
+module.exports.loadFromGoogleSheets = loadFromGoogleSheets;
 
