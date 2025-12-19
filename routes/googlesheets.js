@@ -593,5 +593,135 @@ router.post('/disconnect', (req, res) => {
   res.json({ message: 'Déconnecté avec succès' });
 });
 
+// Fonction helper pour synchroniser automatiquement (appelée depuis server.js)
+async function syncToGoogleSheets(clientsData, prospectsData) {
+  // Vérifier que Google Sheets est connecté et configuré
+  if (!googleTokens.access_token || !spreadsheetId) {
+    console.log('⚠️ Google Sheets non connecté ou non configuré - synchronisation ignorée');
+    return { success: false, reason: 'not_connected' };
+  }
+
+  try {
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Synchroniser les clients
+    if (clientsData && clientsData.length > 0) {
+      const apporteursStore = getApporteursStore();
+      const values = clientsData.map(client => {
+        const nomComplet = client.prenom ? `${client.prenom} ${client.nom}` : client.nom;
+        let apporteurNom = '';
+        if (client.apporteurId && apporteursStore.length > 0) {
+          const apporteur = apporteursStore.find(a => a.id === client.apporteurId);
+          apporteurNom = apporteur ? `${apporteur.prenom || ''} ${apporteur.nom || ''}`.trim() : client.apporteurNom || '';
+        } else if (client.apporteurNom) {
+          apporteurNom = client.apporteurNom;
+        }
+        
+        return [
+          nomComplet || '',
+          client.etape || '',
+          client.adresse || '',
+          apporteurNom,
+          client.courtier || '',
+          client.decision || '',
+          client.notes || ''
+        ];
+      });
+
+      // Vérifier si l'en-tête existe
+      try {
+        await sheets.spreadsheets.values.get({
+          spreadsheetId: spreadsheetId,
+          range: 'A1',
+        });
+      } catch (error) {
+        // Créer l'en-tête si la feuille est vide
+        const header = [['Client', 'Étape', 'Localisation', 'Apporteur', 'Courtier', 'Décision', 'Tt Commentaire']];
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: spreadsheetId,
+          range: 'A1:G1',
+          valueInputOption: 'RAW',
+          resource: { values: header }
+        });
+      }
+
+      // Effacer les anciennes données (sauf l'en-tête)
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: spreadsheetId,
+        range: 'A2:Z1000',
+      });
+
+      // Écrire les nouvelles données
+      if (values.length > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: spreadsheetId,
+          range: 'A2',
+          valueInputOption: 'RAW',
+          resource: { values }
+        });
+      }
+    }
+
+    // Synchroniser les prospects
+    if (prospectsData && prospectsData.length > 0) {
+      const values = prospectsData.map(prospect => [
+        prospect.id || '',
+        prospect.nom || '',
+        prospect.prenom || '',
+        prospect.email || '',
+        prospect.telephone || '',
+        prospect.poste || '',
+        prospect.clientId || '',
+        prospect.notes || '',
+        prospect.dateCreation || new Date().toISOString(),
+        prospect.dateModification || new Date().toISOString()
+      ]);
+
+      const header = [['ID', 'Nom', 'Prénom', 'Email', 'Téléphone', 'Poste', 'Client ID', 'Notes', 'Date Création', 'Date Modification']];
+
+      // Vérifier si la feuille Prospects existe
+      try {
+        await sheets.spreadsheets.values.get({
+          spreadsheetId: spreadsheetId,
+          range: 'Prospects!A1',
+        });
+      } catch (error) {
+        // Créer la feuille avec l'en-tête
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: spreadsheetId,
+          range: 'Prospects!A1:J1',
+          valueInputOption: 'RAW',
+          resource: { values: header }
+        });
+      }
+
+      // Effacer les anciennes données (sauf l'en-tête)
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: spreadsheetId,
+        range: 'Prospects!A2:Z1000',
+      });
+
+      // Écrire les nouvelles données
+      if (values.length > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: spreadsheetId,
+          range: 'Prospects!A2',
+          valueInputOption: 'RAW',
+          resource: { values }
+        });
+      }
+    }
+
+    console.log('✅ Synchronisation automatique vers Google Sheets réussie');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Erreur lors de la synchronisation automatique vers Google Sheets:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Exporter la fonction pour qu'elle soit accessible depuis server.js
 module.exports = router;
+module.exports.syncToGoogleSheets = syncToGoogleSheets;
 

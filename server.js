@@ -42,7 +42,7 @@ app.get('/api/clients/:id', (req, res) => {
   res.json(client);
 });
 
-app.post('/api/clients', (req, res) => {
+app.post('/api/clients', async (req, res) => {
   const { nom, email, telephone, entreprise, adresse, notes, apporteurId, etape, courtier, decision } = req.body;
   const nouveauClient = {
     id: uuidv4(),
@@ -60,10 +60,14 @@ app.post('/api/clients', (req, res) => {
     dateModification: new Date().toISOString()
   };
   clients.push(nouveauClient);
+  
+  // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
+  autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
   res.status(201).json(nouveauClient);
 });
 
-app.put('/api/clients/:id', (req, res) => {
+app.put('/api/clients/:id', async (req, res) => {
   const index = clients.findIndex(c => c.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ message: 'Client non trouvé' });
@@ -73,15 +77,23 @@ app.put('/api/clients/:id', (req, res) => {
     ...req.body,
     dateModification: new Date().toISOString()
   };
+  
+  // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
+  autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
   res.json(clients[index]);
 });
 
-app.delete('/api/clients/:id', (req, res) => {
+app.delete('/api/clients/:id', async (req, res) => {
   const index = clients.findIndex(c => c.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ message: 'Client non trouvé' });
   }
   clients.splice(index, 1);
+  
+  // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
+  autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
   res.json({ message: 'Client supprimé avec succès' });
 });
 
@@ -98,7 +110,7 @@ app.get('/api/prospects/:id', (req, res) => {
   res.json(prospect);
 });
 
-app.post('/api/prospects', (req, res) => {
+app.post('/api/prospects', async (req, res) => {
   const { nom, prenom, email, telephone, poste, clientId, notes } = req.body;
   const nouveauProspect = {
     id: uuidv4(),
@@ -113,10 +125,14 @@ app.post('/api/prospects', (req, res) => {
     dateModification: new Date().toISOString()
   };
   prospects.push(nouveauProspect);
+  
+  // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
+  autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
   res.status(201).json(nouveauProspect);
 });
 
-app.put('/api/prospects/:id', (req, res) => {
+app.put('/api/prospects/:id', async (req, res) => {
   const index = prospects.findIndex(p => p.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ message: 'Prospect non trouvé' });
@@ -126,15 +142,23 @@ app.put('/api/prospects/:id', (req, res) => {
     ...req.body,
     dateModification: new Date().toISOString()
   };
+  
+  // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
+  autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
   res.json(prospects[index]);
 });
 
-app.delete('/api/prospects/:id', (req, res) => {
+app.delete('/api/prospects/:id', async (req, res) => {
   const index = prospects.findIndex(p => p.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ message: 'Prospect non trouvé' });
   }
   prospects.splice(index, 1);
+  
+  // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
+  autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
   res.json({ message: 'Prospect supprimé avec succès' });
 });
 
@@ -280,7 +304,22 @@ app.use('/api/imap', imapRoutes);
 
 // Routes Google Sheets
 const googleSheetsRoutes = require('./routes/googlesheets');
+const syncToGoogleSheets = googleSheetsRoutes.syncToGoogleSheets;
+
+// Injecter le store d'apporteurs dans googlesheets pour la synchronisation
+googleSheetsRoutes.setApporteursStore(() => apporteurs);
+
 app.use('/api/googlesheets', googleSheetsRoutes);
+
+// Fonction helper pour synchroniser automatiquement vers Google Sheets (en arrière-plan)
+async function autoSyncToGoogleSheets() {
+  try {
+    await syncToGoogleSheets(clients, prospects);
+  } catch (error) {
+    // Ignorer les erreurs de synchronisation pour ne pas bloquer les opérations
+    console.error('Erreur synchronisation automatique (non bloquante):', error.message);
+  }
+}
 
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
