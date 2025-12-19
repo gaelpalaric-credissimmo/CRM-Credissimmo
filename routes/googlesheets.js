@@ -376,9 +376,17 @@ router.get('/callback', async (req, res) => {
 });
 
 // Obtenir un client OAuth valide
-function getAuthClient() {
+async function getAuthClient() {
+  // Si pas de token, essayer de charger depuis les variables d'environnement
   if (!googleTokens.access_token) {
-    throw new Error('Non authentifié avec Google');
+    if (process.env.GOOGLE_REFRESH_TOKEN) {
+      console.log('🔄 Tentative de reconnexion automatique...');
+      await loadTokensFromFile();
+    }
+    
+    if (!googleTokens.access_token) {
+      throw new Error('Non authentifié avec Google');
+    }
   }
   
   // Vérifier si le token est expiré et le rafraîchir si nécessaire
@@ -388,17 +396,20 @@ function getAuthClient() {
   if (googleTokens.expiry_date && Date.now() >= googleTokens.expiry_date) {
     if (googleTokens.refresh_token) {
       console.log('🔄 Token expiré, rafraîchissement en cours...');
-      oauth2Client.refreshAccessToken()
-        .then((response) => {
-          googleTokens = response.credentials;
-          oauth2Client.setCredentials(googleTokens);
-          saveTokensToFile();
-          console.log('✅ Token rafraîchi avec succès');
-        })
-        .catch((error) => {
-          console.error('❌ Erreur lors du rafraîchissement du token:', error);
-          throw new Error('Token expiré et impossible de le rafraîchir');
-        });
+      try {
+        const response = await oauth2Client.refreshAccessToken();
+        googleTokens = response.credentials;
+        // Conserver le refresh token
+        if (process.env.GOOGLE_REFRESH_TOKEN) {
+          googleTokens.refresh_token = process.env.GOOGLE_REFRESH_TOKEN;
+        }
+        oauth2Client.setCredentials(googleTokens);
+        saveTokensToFile();
+        console.log('✅ Token rafraîchi avec succès');
+      } catch (error) {
+        console.error('❌ Erreur lors du rafraîchissement du token:', error);
+        throw new Error('Token expiré et impossible de le rafraîchir');
+      }
     } else {
       throw new Error('Token expiré et aucun refresh token disponible');
     }
@@ -510,7 +521,7 @@ router.post('/config', (req, res) => {
 // Lire les prospects depuis Google Sheets
 router.get('/prospects', async (req, res) => {
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     if (!spreadsheetId) {
@@ -547,7 +558,7 @@ router.get('/prospects', async (req, res) => {
 // Écrire les prospects vers Google Sheets
 router.post('/prospects/sync', async (req, res) => {
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     if (!spreadsheetId) {
@@ -618,7 +629,7 @@ router.post('/prospects/sync', async (req, res) => {
 // Lire les clients depuis Google Sheets (structure standard)
 router.get('/clients/standard', async (req, res) => {
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     if (!spreadsheetId) {
@@ -654,7 +665,7 @@ router.get('/clients/standard', async (req, res) => {
 // Écrire les clients vers Google Sheets (structure existante)
 router.post('/clients/sync', async (req, res) => {
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     if (!spreadsheetId) {
@@ -733,7 +744,7 @@ router.post('/clients/sync', async (req, res) => {
 // Synchronisation complète (lire depuis Google Sheets et mettre à jour le CRM)
 router.post('/sync/all', async (req, res) => {
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     if (!spreadsheetId) {
@@ -838,7 +849,7 @@ async function syncToGoogleSheets(clientsData, prospectsData) {
   }
 
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Synchroniser les clients
@@ -966,7 +977,7 @@ async function loadFromGoogleSheets() {
   }
 
   try {
-    const auth = getAuthClient();
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Charger les clients depuis l'onglet "PSLA"
