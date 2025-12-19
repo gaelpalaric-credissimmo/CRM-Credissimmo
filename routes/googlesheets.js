@@ -629,34 +629,34 @@ async function syncToGoogleSheets(clientsData, prospectsData) {
         ];
       });
 
-      // Vérifier si l'en-tête existe
+      // Vérifier si l'en-tête existe dans l'onglet PSLA
       try {
         await sheets.spreadsheets.values.get({
           spreadsheetId: spreadsheetId,
-          range: 'A1',
+          range: 'PSLA!A1',
         });
       } catch (error) {
         // Créer l'en-tête si la feuille est vide
         const header = [['Client', 'Étape', 'Localisation', 'Apporteur', 'Courtier', 'Décision', 'Tt Commentaire']];
         await sheets.spreadsheets.values.update({
           spreadsheetId: spreadsheetId,
-          range: 'A1:G1',
+          range: 'PSLA!A1:G1',
           valueInputOption: 'RAW',
           resource: { values: header }
         });
       }
 
-      // Effacer les anciennes données (sauf l'en-tête)
+      // Effacer les anciennes données (sauf l'en-tête) dans l'onglet PSLA
       await sheets.spreadsheets.values.clear({
         spreadsheetId: spreadsheetId,
-        range: 'A2:Z1000',
+        range: 'PSLA!A2:Z1000',
       });
 
-      // Écrire les nouvelles données
+      // Écrire les nouvelles données dans l'onglet PSLA
       if (values.length > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: spreadsheetId,
-          range: 'A2',
+          range: 'PSLA!A2',
           valueInputOption: 'RAW',
           resource: { values }
         });
