@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
@@ -14,6 +14,20 @@ function Navigation() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
+
+  // Fermer le menu déroulant quand on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isIntegrationsOpen && !event.target.closest('.nav-dropdown')) {
+        setIsIntegrationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isIntegrationsOpen]);
 
   const navItems = [
     { path: '/', label: 'Tableau de bord', icon: FiHome },
