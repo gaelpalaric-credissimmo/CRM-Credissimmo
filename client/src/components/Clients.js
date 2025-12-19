@@ -17,6 +17,9 @@ function Clients() {
     adresse: '',
     notes: '',
     apporteurId: '',
+    etape: '',
+    courtier: '',
+    decision: '',
   });
 
   useEffect(() => {
@@ -74,6 +77,9 @@ function Clients() {
       adresse: client.adresse || '',
       notes: client.notes || '',
       apporteurId: client.apporteurId || '',
+      etape: client.etape || '',
+      courtier: client.courtier || '',
+      decision: client.decision || '',
     });
     setShowModal(true);
   };
@@ -101,6 +107,9 @@ function Clients() {
       adresse: '',
       notes: '',
       apporteurId: '',
+      etape: '',
+      courtier: '',
+      decision: '',
     });
   };
 
@@ -250,6 +259,40 @@ function Clients() {
                       {apporteur.prenom} {apporteur.nom} {apporteur.entreprise ? `(${apporteur.entreprise})` : ''}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Étape</label>
+                <select
+                  value={formData.etape}
+                  onChange={(e) => setFormData({ ...formData, etape: e.target.value })}
+                >
+                  <option value="">Sélectionner une étape</option>
+                  <option value="Contrat Location">Contrat Location</option>
+                  <option value="Contrat préliminaire">Contrat préliminaire</option>
+                  <option value="Acquisition finale">Acquisition finale</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Courtier</label>
+                <input
+                  type="text"
+                  value={formData.courtier}
+                  onChange={(e) => setFormData({ ...formData, courtier: e.target.value })}
+                  placeholder="Ex: Gaël, Cyril, Stéphanie..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Décision</label>
+                <select
+                  value={formData.decision}
+                  onChange={(e) => setFormData({ ...formData, decision: e.target.value })}
+                >
+                  <option value="">Sélectionner une décision</option>
+                  <option value="Validé">Validé</option>
+                  <option value="En cours">En cours</option>
+                  <option value="Pas répondu">Pas répondu</option>
+                  <option value="Annulé">Annulé</option>
                 </select>
               </div>
               <div className="form-group">

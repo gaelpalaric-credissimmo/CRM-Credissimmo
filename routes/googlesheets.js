@@ -3,6 +3,14 @@ const { google } = require('googleapis');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 
+// Référence vers les apporteurs (sera injectée depuis server.js)
+let getApporteursStore = () => [];
+
+// Fonction pour injecter le store d'apporteurs
+router.setApporteursStore = (getter) => {
+  getApporteursStore = getter;
+};
+
 // Configuration OAuth2 Google
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -19,19 +27,46 @@ router.get('/auth', (req, res) => {
   // Vérifier que les identifiants sont configurés
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  const nodeEnv = process.env.NODE_ENV;
+  const frontendUrl = process.env.FRONTEND_URL;
+  
+  // Log détaillé pour le diagnostic
+  console.log('🔍 Diagnostic Google OAuth:', {
+    GOOGLE_CLIENT_ID: clientId ? `✅ Présent (${clientId.substring(0, 10)}...)` : '❌ MANQUANT',
+    GOOGLE_CLIENT_SECRET: clientSecret ? '✅ Présent' : '❌ MANQUANT',
+    GOOGLE_REDIRECT_URI: redirectUri || 'Non configuré (sera généré)',
+    NODE_ENV: nodeEnv || 'Non défini',
+    FRONTEND_URL: frontendUrl || 'Non configuré',
+    Host: req.get('host'),
+    Protocol: req.protocol
+  });
   
   if (!clientId || !clientSecret) {
-    console.error('Variables d\'environnement manquantes:', {
-      GOOGLE_CLIENT_ID: clientId ? 'présent' : 'MANQUANT',
-      GOOGLE_CLIENT_SECRET: clientSecret ? 'présent' : 'MANQUANT',
-      NODE_ENV: process.env.NODE_ENV
-    });
+    const errorDetails = {
+      GOOGLE_CLIENT_ID: clientId ? '✅ Configuré' : '❌ NON CONFIGURÉ',
+      GOOGLE_CLIENT_SECRET: clientSecret ? '✅ Configuré' : '❌ NON CONFIGURÉ',
+      GOOGLE_REDIRECT_URI: redirectUri || 'Non configuré (optionnel)',
+      NODE_ENV: nodeEnv || 'Non défini',
+      Host: req.get('host'),
+      Protocol: req.protocol
+    };
+    
+    console.error('❌ ERREUR: Variables d\'environnement Google OAuth manquantes');
+    console.error('Détails:', errorDetails);
+    
     return res.status(500).json({ 
       error: 'Configuration Google OAuth manquante. Veuillez configurer GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d\'environnement sur Render.',
-      details: {
-        GOOGLE_CLIENT_ID: clientId ? 'configuré' : 'NON CONFIGURÉ',
-        GOOGLE_CLIENT_SECRET: clientSecret ? 'configuré' : 'NON CONFIGURÉ'
-      }
+      details: errorDetails,
+      instructions: [
+        '1. Allez sur https://dashboard.render.com',
+        '2. Sélectionnez votre service backend',
+        '3. Cliquez sur "Environment" dans le menu',
+        '4. Ajoutez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET',
+        '5. (Optionnel) Ajoutez GOOGLE_REDIRECT_URI avec votre URL Render',
+        '6. Attendez le redéploiement automatique',
+        '7. Rechargez la page'
+      ]
     });
   }
 
@@ -113,15 +148,34 @@ function getAuthClient() {
 
 // Vérifier le statut de connexion
 router.get('/status', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  const nodeEnv = process.env.NODE_ENV;
+  const frontendUrl = process.env.FRONTEND_URL;
+  
+  // Log pour diagnostic
+  console.log('📊 Statut Google Sheets demandé:', {
+    connected: !!googleTokens.access_token,
+    hasClientId: !!clientId,
+    hasClientSecret: !!clientSecret,
+    hasRedirectUri: !!redirectUri,
+    nodeEnv: nodeEnv,
+    host: req.get('host')
+  });
+  
   res.json({
     connected: !!googleTokens.access_token,
     spreadsheetId: spreadsheetId,
     config: {
-      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-      hasRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
-      redirectUri: process.env.GOOGLE_REDIRECT_URI || 'non configuré',
-      nodeEnv: process.env.NODE_ENV
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasRedirectUri: !!redirectUri,
+      redirectUri: redirectUri || (nodeEnv === 'production' 
+        ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
+        : 'http://localhost:5000/api/googlesheets/callback'),
+      nodeEnv: nodeEnv || 'Non défini',
+      frontendUrl: frontendUrl || 'Non configuré'
     }
   });
 });
@@ -244,8 +298,8 @@ router.post('/prospects/sync', async (req, res) => {
   }
 });
 
-// Lire les clients depuis Google Sheets
-router.get('/clients', async (req, res) => {
+// Lire les clients depuis Google Sheets (structure standard)
+router.get('/clients/standard', async (req, res) => {
   try {
     const auth = getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
@@ -280,7 +334,7 @@ router.get('/clients', async (req, res) => {
   }
 });
 
-// Écrire les clients vers Google Sheets
+// Écrire les clients vers Google Sheets (structure existante)
 router.post('/clients/sync', async (req, res) => {
   try {
     const auth = getAuthClient();
@@ -295,44 +349,58 @@ router.post('/clients/sync', async (req, res) => {
       return res.status(400).json({ error: 'Liste de clients requise' });
     }
 
-    const values = clients.map(client => [
-      client.id || '',
-      client.nom || '',
-      client.email || '',
-      client.telephone || '',
-      client.entreprise || '',
-      client.adresse || '',
-      client.notes || '',
-      client.apporteurId || '',
-      client.dateCreation || new Date().toISOString(),
-      client.dateModification || new Date().toISOString()
-    ]);
+    // Mapper vers la structure existante : Client | Étape | Localisation | Apporteur | Courtier | Décision | Commentaire
+    const apporteursStore = getApporteursStore();
+    const values = clients.map(client => {
+      const nomComplet = client.prenom ? `${client.prenom} ${client.nom}` : client.nom;
+      // Trouver le nom de l'apporteur à partir de son ID
+      let apporteurNom = '';
+      if (client.apporteurId && apporteursStore.length > 0) {
+        const apporteur = apporteursStore.find(a => a.id === client.apporteurId);
+        apporteurNom = apporteur ? `${apporteur.prenom || ''} ${apporteur.nom || ''}`.trim() : client.apporteurNom || '';
+      } else if (client.apporteurNom) {
+        apporteurNom = client.apporteurNom;
+      }
+      
+      return [
+        nomComplet || '', // Client
+        client.etape || '', // Étape
+        client.adresse || '', // Localisation
+        apporteurNom, // Apporteur (nom de l'apporteur)
+        client.courtier || '', // Courtier
+        client.decision || '', // Décision
+        client.notes || '' // Commentaire
+      ];
+    });
 
-    const header = [['ID', 'Nom', 'Email', 'Téléphone', 'Entreprise', 'Adresse', 'Notes', 'Apporteur ID', 'Date Création', 'Date Modification']];
-
+    // Vérifier si l'en-tête existe, sinon le créer
     try {
       await sheets.spreadsheets.values.get({
         spreadsheetId: spreadsheetId,
-        range: 'Clients!A1',
+        range: 'A1',
       });
     } catch (error) {
+      // Créer l'en-tête si la feuille est vide
+      const header = [['Client', 'Étape', 'Localisation', 'Apporteur', 'Courtier', 'Décision', 'Tt Commentaire']];
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: 'Clients!A1:J1',
+        range: 'A1:G1',
         valueInputOption: 'RAW',
         resource: { values: header }
       });
     }
 
+    // Effacer les anciennes données (sauf l'en-tête)
     await sheets.spreadsheets.values.clear({
       spreadsheetId: spreadsheetId,
-      range: 'Clients!A2:Z1000',
+      range: 'A2:Z1000',
     });
 
+    // Écrire les nouvelles données
     if (values.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: 'Clients!A2',
+        range: 'A2',
         valueInputOption: 'RAW',
         resource: { values }
       });
@@ -355,43 +423,40 @@ router.post('/sync/all', async (req, res) => {
       return res.status(400).json({ error: 'Spreadsheet ID non configuré' });
     }
 
-    // Lire clients et prospects
-    const [clientsResponse, prospectsResponse] = await Promise.all([
-      sheets.spreadsheets.values.get({
-        spreadsheetId: spreadsheetId,
-        range: 'Clients!A2:Z',
-      }).catch(() => ({ data: { values: [] } })),
-      sheets.spreadsheets.values.get({
-        spreadsheetId: spreadsheetId,
-        range: 'Prospects!A2:Z',
-      }).catch(() => ({ data: { values: [] } }))
-    ]);
+    // Lire clients depuis la structure existante (première feuille)
+    const clientsResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: spreadsheetId,
+      range: 'A2:Z',
+    }).catch(() => ({ data: { values: [] } }));
 
-    const clients = (clientsResponse.data.values || []).map((row) => ({
-      id: row[0] || uuidv4(),
-      nom: row[1] || '',
-      email: row[2] || '',
-      telephone: row[3] || '',
-      entreprise: row[4] || '',
-      adresse: row[5] || '',
-      notes: row[6] || '',
-      apporteurId: row[7] || null,
-      dateCreation: row[8] || new Date().toISOString(),
-      dateModification: row[9] || new Date().toISOString()
-    })).filter(client => client.nom || client.email);
+    const rows = clientsResponse.data.values || [];
+    const clients = rows.map((row) => {
+      // Mapper la structure existante : Client | Étape | Localisation | Apporteur | Courtier | Décision | Commentaire
+      const nomComplet = row[0] || '';
+      const [prenom, ...nomParts] = nomComplet.split(' ');
+      const nom = nomParts.join(' ') || prenom;
+      
+      return {
+        id: uuidv4(),
+        nom: nom || nomComplet,
+        prenom: prenom || '',
+        email: '',
+        telephone: '',
+        entreprise: '',
+        adresse: row[2] || '', // Localisation
+        notes: row[6] || '', // Commentaire
+        apporteurId: null, // Sera mappé depuis Apporteur
+        apporteurNom: row[3] || '', // Apporteur
+        etape: row[1] || '', // Étape
+        courtier: row[4] || '', // Courtier
+        decision: row[5] || '', // Décision
+        dateCreation: new Date().toISOString(),
+        dateModification: new Date().toISOString()
+      };
+    }).filter(client => client.nom);
 
-    const prospects = (prospectsResponse.data.values || []).map((row) => ({
-      id: row[0] || uuidv4(),
-      nom: row[1] || '',
-      prenom: row[2] || '',
-      email: row[3] || '',
-      telephone: row[4] || '',
-      poste: row[5] || '',
-      clientId: row[6] || '',
-      notes: row[7] || '',
-      dateCreation: row[8] || new Date().toISOString(),
-      dateModification: row[9] || new Date().toISOString()
-    })).filter(prospect => prospect.nom || prospect.email);
+    // Pour les prospects, on peut créer une liste vide ou utiliser une autre logique
+    const prospects = [];
 
     res.json({ clients, prospects, success: true });
   } catch (error) {

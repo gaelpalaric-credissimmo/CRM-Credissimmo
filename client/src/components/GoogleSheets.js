@@ -49,18 +49,36 @@ function GoogleSheets() {
       // Afficher les informations de configuration pour debug
       if (response.data.config) {
         setConfigStatus(response.data.config);
-        console.log('Configuration Google Sheets:', response.data.config);
+        console.log('📊 Configuration Google Sheets:', response.data.config);
+        console.log('📊 État des variables:', {
+          GOOGLE_CLIENT_ID: response.data.config.hasClientId ? '✅ Configuré' : '❌ MANQUANT',
+          GOOGLE_CLIENT_SECRET: response.data.config.hasClientSecret ? '✅ Configuré' : '❌ MANQUANT',
+          GOOGLE_REDIRECT_URI: response.data.config.redirectUri || 'Non configuré',
+          NODE_ENV: response.data.config.nodeEnv || 'Non défini'
+        });
+        
         if (!response.data.config.hasClientId || !response.data.config.hasClientSecret) {
-          console.warn('⚠️ Variables d\'environnement manquantes:', {
-            GOOGLE_CLIENT_ID: response.data.config.hasClientId ? '✓' : '✗',
-            GOOGLE_CLIENT_SECRET: response.data.config.hasClientSecret ? '✓' : '✗',
-            GOOGLE_REDIRECT_URI: response.data.config.redirectUri
-          });
+          console.warn('⚠️ ATTENTION: Variables d\'environnement manquantes sur Render!');
+          console.warn('Veuillez configurer GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d\'environnement de votre service Render.');
         }
+      } else {
+        // Si pas de config, créer un statut par défaut
+        setConfigStatus({
+          hasClientId: false,
+          hasClientSecret: false,
+          redirectUri: 'Non configuré'
+        });
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification du statut:', error);
+      console.error('❌ Erreur lors de la vérification du statut:', error);
+      console.error('Détails:', error.response?.data || error.message);
       setStatus({ connected: false, loading: false });
+      // En cas d'erreur, supposer que la config est manquante
+      setConfigStatus({
+        hasClientId: false,
+        hasClientSecret: false,
+        redirectUri: 'Erreur de connexion au serveur'
+      });
     }
   };
 
@@ -77,20 +95,36 @@ function GoogleSheets() {
         alert('Erreur : URL d\'authentification non reçue');
       }
     } catch (error) {
-      console.error('Erreur lors de la connexion:', error);
+      console.error('Erreur complète lors de la connexion:', error);
+      console.error('Réponse du serveur:', error.response?.data);
+      console.error('Status HTTP:', error.response?.status);
+      
       const errorData = error.response?.data;
       let errorMsg = 'Erreur lors de la connexion à Google Sheets';
+      let details = '';
       
       if (errorData?.error) {
         errorMsg = errorData.error;
         if (errorData.details) {
-          errorMsg += `\n\nDétails:\n- GOOGLE_CLIENT_ID: ${errorData.details.GOOGLE_CLIENT_ID}\n- GOOGLE_CLIENT_SECRET: ${errorData.details.GOOGLE_CLIENT_SECRET}`;
+          details = `\n\nDétails de la configuration:\n- GOOGLE_CLIENT_ID: ${errorData.details.GOOGLE_CLIENT_ID}\n- GOOGLE_CLIENT_SECRET: ${errorData.details.GOOGLE_CLIENT_SECRET}`;
         }
       } else if (error.message) {
         errorMsg = error.message;
       }
       
-      alert(`Erreur : ${errorMsg}\n\nVérifiez que GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET sont configurés dans les variables d'environnement sur Render.`);
+      // Afficher un message d'erreur plus détaillé
+      const fullErrorMsg = `❌ ${errorMsg}${details}\n\n📋 Actions à effectuer:\n1. Allez sur Render Dashboard\n2. Sélectionnez votre service backend\n3. Allez dans "Environment"\n4. Ajoutez les variables:\n   - GOOGLE_CLIENT_ID\n   - GOOGLE_CLIENT_SECRET\n   - GOOGLE_REDIRECT_URI (optionnel)\n5. Attendez le redéploiement\n6. Rechargez cette page`;
+      
+      alert(fullErrorMsg);
+      
+      // Mettre à jour le statut de configuration pour afficher l'alerte dans l'UI
+      if (!configStatus) {
+        setConfigStatus({
+          hasClientId: false,
+          hasClientSecret: false,
+          redirectUri: 'Non configuré'
+        });
+      }
     }
   };
 
@@ -211,33 +245,67 @@ function GoogleSheets() {
                 background: '#fff3cd', 
                 borderRadius: '8px', 
                 textAlign: 'left',
-                border: '1px solid #ffc107'
+                border: '2px solid #ffc107'
               }}>
-                <h4 style={{ marginTop: '0', marginBottom: '1rem', color: '#856404' }}>
-                  ⚠️ Configuration manquante
+                <h4 style={{ marginTop: '0', marginBottom: '1rem', color: '#856404', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                  Configuration Google OAuth incomplète
                 </h4>
-                <p style={{ marginBottom: '1rem', color: '#856404' }}>
+                <p style={{ marginBottom: '1rem', color: '#856404', fontWeight: 'bold' }}>
                   Les variables d'environnement suivantes ne sont pas configurées sur Render :
                 </p>
-                <ul style={{ marginBottom: '1rem', paddingLeft: '1.5rem', color: '#856404' }}>
-                  <li style={{ marginBottom: '0.5rem' }}>
-                    <strong>GOOGLE_CLIENT_ID</strong>: {configStatus.hasClientId ? '✓ Configuré' : '✗ MANQUANT'}
-                  </li>
-                  <li style={{ marginBottom: '0.5rem' }}>
-                    <strong>GOOGLE_CLIENT_SECRET</strong>: {configStatus.hasClientSecret ? '✓ Configuré' : '✗ MANQUANT'}
-                  </li>
-                  <li style={{ marginBottom: '0.5rem' }}>
-                    <strong>GOOGLE_REDIRECT_URI</strong>: {configStatus.redirectUri || 'Non configuré'}
-                  </li>
-                </ul>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '4px', marginTop: '1rem' }}>
-                  <strong style={{ color: '#856404' }}>Pour corriger :</strong>
-                  <ol style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', color: '#856404', fontSize: '0.9rem' }}>
-                    <li>Allez sur Render > Votre service > Environment</li>
-                    <li>Ajoutez les variables manquantes</li>
-                    <li>Attendez le redéploiement automatique</li>
+                <div style={{ 
+                  background: 'white', 
+                  padding: '1rem', 
+                  borderRadius: '4px', 
+                  marginBottom: '1rem',
+                  fontFamily: 'monospace',
+                  fontSize: '0.9rem'
+                }}>
+                  <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>{configStatus.hasClientId ? '✅' : '❌'}</span>
+                    <strong>GOOGLE_CLIENT_ID</strong>: 
+                    <span style={{ color: configStatus.hasClientId ? '#28a745' : '#dc3545', marginLeft: '0.5rem' }}>
+                      {configStatus.hasClientId ? 'Configuré' : 'MANQUANT'}
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>{configStatus.hasClientSecret ? '✅' : '❌'}</span>
+                    <strong>GOOGLE_CLIENT_SECRET</strong>: 
+                    <span style={{ color: configStatus.hasClientSecret ? '#28a745' : '#dc3545', marginLeft: '0.5rem' }}>
+                      {configStatus.hasClientSecret ? 'Configuré' : 'MANQUANT'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>ℹ️</span>
+                    <strong>GOOGLE_REDIRECT_URI</strong>: 
+                    <code style={{ marginLeft: '0.5rem', color: '#666' }}>
+                      {configStatus.redirectUri || 'Non configuré (sera généré automatiquement)'}
+                    </code>
+                  </div>
+                </div>
+                <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '4px', marginTop: '1rem', border: '1px solid #dee2e6' }}>
+                  <strong style={{ color: '#856404', display: 'block', marginBottom: '0.75rem' }}>
+                    📋 Instructions pour corriger :
+                  </strong>
+                  <ol style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', color: '#856404', fontSize: '0.9rem', lineHeight: '1.8' }}>
+                    <li>Connectez-vous à <a href="https://dashboard.render.com" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff' }}>Render Dashboard</a></li>
+                    <li>Sélectionnez votre service backend (celui qui héberge votre API)</li>
+                    <li>Cliquez sur l'onglet <strong>"Environment"</strong> dans le menu de gauche</li>
+                    <li>Ajoutez les variables suivantes :
+                      <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+                        <li><code>GOOGLE_CLIENT_ID</code> : Votre Client ID depuis Google Cloud Console</li>
+                        <li><code>GOOGLE_CLIENT_SECRET</code> : Votre Client Secret depuis Google Cloud Console</li>
+                        <li><code>GOOGLE_REDIRECT_URI</code> : <code>https://votre-app.onrender.com/api/googlesheets/callback</code> (remplacez par votre URL Render)</li>
+                      </ul>
+                    </li>
+                    <li>Cliquez sur <strong>"Save Changes"</strong> - Render redéploiera automatiquement</li>
+                    <li>Attendez la fin du déploiement (2-3 minutes)</li>
                     <li>Rechargez cette page</li>
                   </ol>
+                  <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#e7f3ff', borderRadius: '4px', fontSize: '0.85rem' }}>
+                    <strong>💡 Astuce :</strong> Si vous n'avez pas encore créé les identifiants Google OAuth, consultez le guide <code>GOOGLE_SHEETS_SETUP.md</code> dans votre projet.
+                  </div>
                 </div>
               </div>
             )}

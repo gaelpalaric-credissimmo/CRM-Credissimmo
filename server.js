@@ -43,7 +43,7 @@ app.get('/api/clients/:id', (req, res) => {
 });
 
 app.post('/api/clients', (req, res) => {
-  const { nom, email, telephone, entreprise, adresse, notes, apporteurId } = req.body;
+  const { nom, email, telephone, entreprise, adresse, notes, apporteurId, etape, courtier, decision } = req.body;
   const nouveauClient = {
     id: uuidv4(),
     nom,
@@ -53,6 +53,9 @@ app.post('/api/clients', (req, res) => {
     adresse,
     notes,
     apporteurId: apporteurId || null,
+    etape: etape || '',
+    courtier: courtier || '',
+    decision: decision || '',
     dateCreation: new Date().toISOString(),
     dateModification: new Date().toISOString()
   };
