@@ -17,9 +17,21 @@ let spreadsheetId = null;
 // Route pour initier la connexion Google
 router.get('/auth', (req, res) => {
   // Vérifier que les identifiants sont configurés
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    console.error('Variables d\'environnement manquantes:', {
+      GOOGLE_CLIENT_ID: clientId ? 'présent' : 'MANQUANT',
+      GOOGLE_CLIENT_SECRET: clientSecret ? 'présent' : 'MANQUANT',
+      NODE_ENV: process.env.NODE_ENV
+    });
     return res.status(500).json({ 
-      error: 'Configuration Google OAuth manquante. Veuillez configurer GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d\'environnement.' 
+      error: 'Configuration Google OAuth manquante. Veuillez configurer GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d\'environnement sur Render.',
+      details: {
+        GOOGLE_CLIENT_ID: clientId ? 'configuré' : 'NON CONFIGURÉ',
+        GOOGLE_CLIENT_SECRET: clientSecret ? 'configuré' : 'NON CONFIGURÉ'
+      }
     });
   }
 

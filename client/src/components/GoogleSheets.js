@@ -64,8 +64,19 @@ function GoogleSheets() {
       }
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Erreur lors de la connexion à Google Sheets';
-      alert(`Erreur : ${errorMsg}\n\nVérifiez que GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET sont configurés dans les variables d'environnement.`);
+      const errorData = error.response?.data;
+      let errorMsg = 'Erreur lors de la connexion à Google Sheets';
+      
+      if (errorData?.error) {
+        errorMsg = errorData.error;
+        if (errorData.details) {
+          errorMsg += `\n\nDétails:\n- GOOGLE_CLIENT_ID: ${errorData.details.GOOGLE_CLIENT_ID}\n- GOOGLE_CLIENT_SECRET: ${errorData.details.GOOGLE_CLIENT_SECRET}`;
+        }
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      alert(`Erreur : ${errorMsg}\n\nVérifiez que GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET sont configurés dans les variables d'environnement sur Render.`);
     }
   };
 
