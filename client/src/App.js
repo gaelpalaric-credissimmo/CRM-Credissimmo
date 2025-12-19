@@ -8,11 +8,12 @@ import Opportunites from './components/Opportunites';
 import Outlook from './components/Outlook';
 import Apporteurs from './components/Apporteurs';
 import GoogleSheets from './components/GoogleSheets';
-import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck, FiFileText } from 'react-icons/fi';
+import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck, FiFileText, FiChevronDown, FiChevronUp, FiSettings } from 'react-icons/fi';
 
 function Navigation() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
 
   const navItems = [
     { path: '/', label: 'Tableau de bord', icon: FiHome },
@@ -20,9 +21,14 @@ function Navigation() {
     { path: '/contacts', label: 'Contacts', icon: FiUser },
     { path: '/opportunites', label: 'Opportunités', icon: FiBriefcase },
     { path: '/apporteurs', label: 'Apporteurs', icon: FiUserCheck },
+  ];
+
+  const integrationItems = [
     { path: '/googlesheets', label: 'Google Sheets', icon: FiFileText },
     { path: '/outlook', label: 'Outlook', icon: FiMail },
   ];
+
+  const isIntegrationActive = integrationItems.some(item => location.pathname === item.path);
 
   return (
     <nav className="navbar">
@@ -52,6 +58,38 @@ function Navigation() {
               </li>
             );
           })}
+          <li className="nav-dropdown">
+            <button
+              className={`nav-dropdown-toggle ${isIntegrationActive ? 'active' : ''}`}
+              onClick={() => setIsIntegrationsOpen(!isIntegrationsOpen)}
+            >
+              <FiSettings />
+              <span>Intégrations</span>
+              {isIntegrationsOpen ? <FiChevronUp /> : <FiChevronDown />}
+            </button>
+            {isIntegrationsOpen && (
+              <ul className="nav-dropdown-menu">
+                {integrationItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        className={location.pathname === item.path ? 'active' : ''}
+                        onClick={() => {
+                          setIsIntegrationsOpen(false);
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        <Icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
         </ul>
       </div>
     </nav>
