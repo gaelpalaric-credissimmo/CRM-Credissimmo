@@ -1,14 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { getStats } from '../api/api';
-import { FiUsers, FiUser, FiBriefcase, FiDollarSign } from 'react-icons/fi';
+import { getStats, syncAllFromSheets, getGoogleSheetsStatus } from '../api/api';
+import { FiUsers, FiUser, FiBriefcase, FiDollarSign, FiRefreshCw } from 'react-icons/fi';
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    loadStats();
+    // Synchroniser depuis Google Sheets au chargement, puis charger les stats
+    syncAndLoadStats();
   }, []);
+
+  const syncAndLoadStats = async () => {
+    try {
+      // Vérifier si Google Sheets est connecté
+      const statusResponse = await getGoogleSheetsStatus();
+      if (statusResponse.data.connected && statusResponse.data.spreadsheetId) {
+        // Synchroniser depuis Google Sheets
+        setSyncing(true);
+        try {
+          await syncAllFromSheets();
+          console.log('✅ Synchronisation depuis Google Sheets réussie');
+        } catch (error) {
+          console.error('Erreur lors de la synchronisation (non bloquante):', error);
+          // Continuer même si la synchronisation échoue
+        } finally {
+          setSyncing(false);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du statut Google Sheets:', error);
+      // Continuer même si la vérification échoue
+    }
+
+    // Charger les statistiques après la synchronisation
+    await loadStats();
+  };
 
   const loadStats = async () => {
     try {
@@ -22,7 +50,14 @@ function Dashboard() {
   };
 
   if (loading) {
-    return <div className="card">Chargement...</div>;
+    return (
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {syncing && <FiRefreshCw style={{ animation: 'spin 1s linear infinite' }} />}
+          <span>{syncing ? 'Synchronisation depuis Google Sheets...' : 'Chargement...'}</span>
+        </div>
+      </div>
+    );
   }
 
   if (!stats) {

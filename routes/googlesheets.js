@@ -11,6 +11,16 @@ router.setApporteursStore = (getter) => {
   getApporteursStore = getter;
 };
 
+// Références vers les stores de données (sera injectée depuis server.js)
+let updateClientsStore = null;
+let updateProspectsStore = null;
+
+// Fonction pour injecter les stores de données
+router.setDataStores = (updateClients, updateProspects) => {
+  updateClientsStore = updateClients;
+  updateProspectsStore = updateProspects;
+};
+
 // Configuration OAuth2 Google
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -576,8 +586,40 @@ router.post('/sync/all', async (req, res) => {
       };
     }).filter(client => client.nom);
 
-    // Pour les prospects, on peut créer une liste vide ou utiliser une autre logique
-    const prospects = [];
+    // Lire prospects depuis l'onglet "Prospects"
+    let prospects = [];
+    try {
+      const prospectsResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Prospects!A2:Z',
+      }).catch(() => ({ data: { values: [] } }));
+
+      const prospectRows = prospectsResponse.data.values || [];
+      prospects = prospectRows.map((row) => ({
+        id: row[0] || uuidv4(),
+        nom: row[1] || '',
+        prenom: row[2] || '',
+        email: row[3] || '',
+        telephone: row[4] || '',
+        poste: row[5] || '',
+        clientId: row[6] || '',
+        notes: row[7] || '',
+        dateCreation: row[8] || new Date().toISOString(),
+        dateModification: row[9] || new Date().toISOString()
+      })).filter(prospect => prospect.nom || prospect.email);
+    } catch (error) {
+      console.error('Erreur lors de la lecture des prospects:', error);
+    }
+
+    // Mettre à jour les stores en mémoire si les fonctions sont disponibles
+    if (updateClientsStore) {
+      updateClientsStore(clients);
+      console.log(`✅ ${clients.length} clients synchronisés depuis Google Sheets`);
+    }
+    if (updateProspectsStore) {
+      updateProspectsStore(prospects);
+      console.log(`✅ ${prospects.length} prospects synchronisés depuis Google Sheets`);
+    }
 
     res.json({ clients, prospects, success: true });
   } catch (error) {

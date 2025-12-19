@@ -310,6 +310,12 @@ const loadFromGoogleSheets = googleSheetsRoutes.loadFromGoogleSheets;
 // Injecter le store d'apporteurs dans googlesheets pour la synchronisation
 googleSheetsRoutes.setApporteursStore(() => apporteurs);
 
+// Injecter les fonctions de mise à jour des stores pour la synchronisation
+googleSheetsRoutes.setDataStores(
+  (newClients) => { clients = newClients; },
+  (newProspects) => { prospects = newProspects; }
+);
+
 app.use('/api/googlesheets', googleSheetsRoutes);
 
 // Fonction helper pour synchroniser automatiquement vers Google Sheets (en arrière-plan)
