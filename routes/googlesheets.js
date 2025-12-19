@@ -27,9 +27,14 @@ router.get('/auth', (req, res) => {
   // Vérifier que les identifiants sont configurés
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
   const nodeEnv = process.env.NODE_ENV;
   const frontendUrl = process.env.FRONTEND_URL;
+  
+  // Construire l'URL de redirection correcte
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
+    (process.env.NODE_ENV === 'production' 
+      ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
+      : 'http://localhost:5000/api/googlesheets/callback');
   
   // Log détaillé pour le diagnostic
   console.log('🔍 Diagnostic Google OAuth:', {
@@ -74,12 +79,6 @@ router.get('/auth', (req, res) => {
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.readonly'
   ];
-
-  // Construire l'URL de redirection correcte
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
-    (process.env.NODE_ENV === 'production' 
-      ? `${req.protocol}://${req.get('host')}/api/googlesheets/callback`
-      : 'http://localhost:5000/api/googlesheets/callback');
 
   // Recréer le client OAuth avec l'URI correcte
   const client = new google.auth.OAuth2(
