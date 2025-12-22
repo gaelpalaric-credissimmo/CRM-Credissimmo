@@ -95,3 +95,4 @@ FRONTEND_URL=https://crm-credissimmo.onrender.com
 - Une fois ajouté aux variables d'environnement, la connexion sera automatique à chaque démarrage
 - Le **access token** est rafraîchi automatiquement quand il expire
 
+

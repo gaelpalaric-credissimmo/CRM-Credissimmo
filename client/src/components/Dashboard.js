@@ -113,22 +113,42 @@ function Dashboard() {
 
       <div className="card">
         <h3 className="card-title">Opportunités par statut</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-          <div>
-            <div className="stat-label">Nouvelles</div>
-            <div className="stat-value">{stats.opportunitesParStatut.nouvelle}</div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
           <div>
             <div className="stat-label">En cours</div>
-            <div className="stat-value">{stats.opportunitesParStatut.enCours}</div>
+            <div className="stat-value" style={{ color: '#ffc107' }}>{stats.enCours || 0}</div>
           </div>
           <div>
-            <div className="stat-label">Gagnées</div>
-            <div className="stat-value">{stats.opportunitesParStatut.gagnee}</div>
+            <div className="stat-label">Prise de contact</div>
+            <div className="stat-value">{stats.opportunitesParStatut.prise_contact || 0}</div>
           </div>
           <div>
-            <div className="stat-label">Perdues</div>
-            <div className="stat-value">{stats.opportunitesParStatut.perdue}</div>
+            <div className="stat-label">Qualification</div>
+            <div className="stat-value">{stats.opportunitesParStatut.qualification || 0}</div>
+          </div>
+          <div>
+            <div className="stat-label">Recherche financement</div>
+            <div className="stat-value">{stats.opportunitesParStatut.recherche_financement || 0}</div>
+          </div>
+          <div>
+            <div className="stat-label">Instruction bancaire</div>
+            <div className="stat-value">{stats.opportunitesParStatut.instruction_bancaire || 0}</div>
+          </div>
+          <div>
+            <div className="stat-label">Accord de principe</div>
+            <div className="stat-value" style={{ color: '#17a2b8' }}>{stats.opportunitesParStatut.accord_principe || 0}</div>
+          </div>
+          <div>
+            <div className="stat-label">Signature</div>
+            <div className="stat-value" style={{ color: '#17a2b8' }}>{stats.opportunitesParStatut.signature || 0}</div>
+          </div>
+          <div>
+            <div className="stat-label">Facturation</div>
+            <div className="stat-value" style={{ color: '#28a745' }}>{stats.opportunitesParStatut.facturation || 0}</div>
+          </div>
+          <div>
+            <div className="stat-label">Annulées</div>
+            <div className="stat-value" style={{ color: '#dc3545' }}>{stats.opportunitesParStatut.annulee || 0}</div>
           </div>
         </div>
       </div>

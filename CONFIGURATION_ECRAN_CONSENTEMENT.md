@@ -123,3 +123,4 @@ Si votre application est en mode "Test" et que vous voulez que d'autres utilisat
 
 Pour un usage personnel, le mode "Test" avec votre email est suffisant.
 
+

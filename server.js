@@ -182,7 +182,7 @@ app.post('/api/opportunites', (req, res) => {
     titre,
     description,
     montant: parseFloat(montant) || 0,
-    statut: statut || 'nouvelle',
+    statut: statut || 'prise_contact',
     clientId,
     dateEcheance,
     probabilite: parseInt(probabilite) || 0,
@@ -222,15 +222,27 @@ app.get('/api/stats', (req, res) => {
     totalProspects: prospects.length,
     totalOpportunites: opportunites.length,
     opportunitesParStatut: {
-      nouvelle: opportunites.filter(o => o.statut === 'nouvelle').length,
-      enCours: opportunites.filter(o => o.statut === 'en_cours').length,
-      gagnee: opportunites.filter(o => o.statut === 'gagnee').length,
-      perdue: opportunites.filter(o => o.statut === 'perdue').length
+      prise_contact: opportunites.filter(o => o.statut === 'prise_contact').length,
+      qualification: opportunites.filter(o => o.statut === 'qualification').length,
+      recherche_financement: opportunites.filter(o => o.statut === 'recherche_financement').length,
+      proposition_envoyee: opportunites.filter(o => o.statut === 'proposition_envoyee').length,
+      proposition_acceptee: opportunites.filter(o => o.statut === 'proposition_acceptee').length,
+      constitution_dossier: opportunites.filter(o => o.statut === 'constitution_dossier').length,
+      dossier_envoye_banque: opportunites.filter(o => o.statut === 'dossier_envoye_banque').length,
+      instruction_bancaire: opportunites.filter(o => o.statut === 'instruction_bancaire').length,
+      accord_principe: opportunites.filter(o => o.statut === 'accord_principe').length,
+      offre_pret_recue: opportunites.filter(o => o.statut === 'offre_pret_recue').length,
+      offre_acceptee: opportunites.filter(o => o.statut === 'offre_acceptee').length,
+      signature: opportunites.filter(o => o.statut === 'signature').length,
+      deblocage_fonds: opportunites.filter(o => o.statut === 'deblocage_fonds').length,
+      facturation: opportunites.filter(o => o.statut === 'facturation').length,
+      annulee: opportunites.filter(o => o.statut === 'annulee').length
     },
     montantTotal: opportunites.reduce((sum, o) => sum + (o.montant || 0), 0),
     montantGagne: opportunites
-      .filter(o => o.statut === 'gagnee')
-      .reduce((sum, o) => sum + (o.montant || 0), 0)
+      .filter(o => o.statut === 'facturation')
+      .reduce((sum, o) => sum + (o.montant || 0), 0),
+    enCours: opportunites.filter(o => o.statut !== 'facturation' && o.statut !== 'annulee').length
   };
   res.json(stats);
 });

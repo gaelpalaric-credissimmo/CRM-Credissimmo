@@ -128,3 +128,4 @@ FRONTEND_URL=http://localhost:3000
 - [Documentation OAuth 2.0 Google](https://developers.google.com/identity/protocols/oauth2)
 - [Guide de configuration OAuth](https://developers.google.com/identity/protocols/oauth2/web-server)
 
+
