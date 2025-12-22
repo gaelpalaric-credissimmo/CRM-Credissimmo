@@ -256,7 +256,7 @@ function EmailTemplates() {
                   onChange={(e) => setFormData({ ...formData, sujet: e.target.value })}
                   placeholder="Ex: Relance - Dossier {{client_nom}}"
                 />
-                <small>Utilisez {{variable}} pour les variables dynamiques</small>
+                <small>Utilisez {'{{variable}}'} pour les variables dynamiques</small>
               </div>
               <div className="form-group">
                 <label>Corps de l'email (HTML) *</label>
@@ -267,7 +267,7 @@ function EmailTemplates() {
                   onChange={(e) => setFormData({ ...formData, corps: e.target.value })}
                   placeholder="<p>Bonjour {{client_nom}},</p>..."
                 />
-                <small>Variables disponibles : {{client_nom}}, {{client_email}}, {{opportunite_titre}}, {{opportunite_montant}}</small>
+                <small>Variables disponibles : {'{{client_nom}}'}, {'{{client_email}}'}, {'{{opportunite_titre}}'}, {'{{opportunite_montant}}'}</small>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>
