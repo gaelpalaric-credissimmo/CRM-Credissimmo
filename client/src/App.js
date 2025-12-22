@@ -8,7 +8,8 @@ import Opportunites from './components/Opportunites';
 import Outlook from './components/Outlook';
 import Apporteurs from './components/Apporteurs';
 import GoogleSheets from './components/GoogleSheets';
-import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck, FiFileText, FiChevronDown, FiChevronUp, FiSettings } from 'react-icons/fi';
+import Rappels from './components/Rappels';
+import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck, FiFileText, FiChevronDown, FiChevronUp, FiSettings, FiBell } from 'react-icons/fi';
 
 function Navigation() {
   const location = useLocation();
@@ -31,6 +32,7 @@ function Navigation() {
 
   const navItems = [
     { path: '/', label: 'Tableau de bord', icon: FiHome },
+    { path: '/rappels', label: 'Rappels', icon: FiBell },
     { path: '/clients', label: 'Clients', icon: FiUsers },
     { path: '/prospects', label: 'Prospects', icon: FiUser },
     { path: '/opportunites', label: 'Opportunités', icon: FiBriefcase },
@@ -118,6 +120,7 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/rappels" element={<Rappels />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/prospects" element={<Prospects />} />
             <Route path="/opportunites" element={<Opportunites />} />

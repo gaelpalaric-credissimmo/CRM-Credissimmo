@@ -28,6 +28,7 @@ let clients = [];
 let prospects = [];
 let opportunites = [];
 let apporteurs = [];
+let rappels = [];
 
 // Routes pour les clients
 app.get('/api/clients', (req, res) => {
@@ -329,6 +330,329 @@ googleSheetsRoutes.setDataStores(
 );
 
 app.use('/api/googlesheets', googleSheetsRoutes);
+
+// ============================================
+// SYSTÈME DE RAPPELS AUTOMATIQUES
+// ============================================
+
+// Types de rappels disponibles
+const TYPES_RAPPELS = {
+  ECHEANCE_APPROCHANT: 'echeance_approchant',
+  ECHEANCE_AUJOURDHUI: 'echeance_aujourdhui',
+  STATUT_BLOQUE: 'statut_bloque',
+  RELANCE_PROPOSITION: 'relance_proposition',
+  RELANCE_INSTRUCTION: 'relance_instruction',
+  PAS_DE_CONTACT: 'pas_de_contact',
+  SIGNATURE_APPROCHANT: 'signature_approchant',
+  DEBLOCAGE_APPROCHANT: 'deblocage_approchant',
+  FACTURATION_A_FAIRE: 'facturation_a_faire',
+  DOCUMENTS_MANQUANTS: 'documents_manquants',
+};
+
+// Configuration des délais (en jours)
+const CONFIG_RAPPELS = {
+  ECHEANCE_AVANT: 7, // Rappel 7 jours avant l'échéance
+  ECHEANCE_URGENT: 3, // Rappel urgent 3 jours avant
+  STATUT_BLOQUE_JOURS: 5, // Rappel si statut inchangé depuis 5 jours
+  RELANCE_PROPOSITION_JOURS: 3, // Relance après 3 jours sans réponse
+  RELANCE_INSTRUCTION_JOURS: 7, // Relance instruction après 7 jours
+  PAS_DE_CONTACT_JOURS: 14, // Rappel si pas de contact depuis 14 jours
+  SIGNATURE_AVANT: 3, // Rappel 3 jours avant signature
+  DEBLOCAGE_AVANT: 3, // Rappel 3 jours avant déblocage
+  DOCUMENTS_DELAI: 5, // Rappel documents après 5 jours en constitution
+};
+
+// Fonction pour générer automatiquement les rappels
+function genererRappelsAutomatiques() {
+  const nouveauxRappels = [];
+  const maintenant = new Date();
+  
+  // Parcourir toutes les opportunités
+  opportunites.forEach(opportunite => {
+    if (opportunite.statut === 'annulee') return;
+    
+    const client = clients.find(c => c.id === opportunite.clientId);
+    if (!client) return;
+    
+    // 1. Rappel date d'échéance approchant
+    if (opportunite.dateEcheance) {
+      const dateEcheance = new Date(opportunite.dateEcheance);
+      const joursRestants = Math.ceil((dateEcheance - maintenant) / (1000 * 60 * 60 * 24));
+      
+      if (joursRestants === 0) {
+        // Échéance aujourd'hui
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.ECHEANCE_AUJOURDHUI && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.ECHEANCE_AUJOURDHUI,
+            titre: `Échéance aujourd'hui - ${opportunite.titre}`,
+            description: `L'échéance de l'opportunité "${opportunite.titre}" est aujourd'hui.`,
+            priorite: 'urgente',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      } else if (joursRestants > 0 && joursRestants <= CONFIG_RAPPELS.ECHEANCE_URGENT) {
+        // Échéance dans 3 jours ou moins
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.ECHEANCE_APPROCHANT && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.ECHEANCE_APPROCHANT,
+            titre: `Échéance dans ${joursRestants} jour(s) - ${opportunite.titre}`,
+            description: `L'échéance de l'opportunité "${opportunite.titre}" approche (${joursRestants} jour(s)).`,
+            priorite: 'haute',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      } else if (joursRestants > CONFIG_RAPPELS.ECHEANCE_URGENT && joursRestants <= CONFIG_RAPPELS.ECHEANCE_AVANT) {
+        // Échéance dans 7 jours
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.ECHEANCE_APPROCHANT && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.ECHEANCE_APPROCHANT,
+            titre: `Échéance dans ${joursRestants} jour(s) - ${opportunite.titre}`,
+            description: `L'échéance de l'opportunité "${opportunite.titre}" approche (${joursRestants} jour(s)).`,
+            priorite: 'moyenne',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      }
+    }
+    
+    // 2. Rappel statut bloqué (pas de changement depuis X jours)
+    if (opportunite.dateModification) {
+      const dateModif = new Date(opportunite.dateModification);
+      const joursSansModif = Math.floor((maintenant - dateModif) / (1000 * 60 * 60 * 24));
+      
+      if (joursSansModif >= CONFIG_RAPPELS.STATUT_BLOQUE_JOURS) {
+        const statutInfo = getStatutInfo(opportunite.statut);
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.STATUT_BLOQUE && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.STATUT_BLOQUE,
+            titre: `Statut bloqué - ${opportunite.titre}`,
+            description: `L'opportunité "${opportunite.titre}" est restée au statut "${statutInfo.label}" depuis ${joursSansModif} jours.`,
+            priorite: 'moyenne',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      }
+    }
+    
+    // 3. Relance proposition envoyée
+    if (opportunite.statut === 'proposition_envoyee' && opportunite.dateModification) {
+      const dateModif = new Date(opportunite.dateModification);
+      const joursDepuisEnvoi = Math.floor((maintenant - dateModif) / (1000 * 60 * 60 * 24));
+      
+      if (joursDepuisEnvoi >= CONFIG_RAPPELS.RELANCE_PROPOSITION_JOURS) {
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.RELANCE_PROPOSITION && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.RELANCE_PROPOSITION,
+            titre: `Relance proposition - ${opportunite.titre}`,
+            description: `La proposition pour "${opportunite.titre}" a été envoyée il y a ${joursDepuisEnvoi} jours. Pensez à relancer le client.`,
+            priorite: 'haute',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      }
+    }
+    
+    // 4. Relance instruction bancaire
+    if (opportunite.statut === 'instruction_bancaire' && opportunite.dateModification) {
+      const dateModif = new Date(opportunite.dateModification);
+      const joursDepuisEnvoi = Math.floor((maintenant - dateModif) / (1000 * 60 * 60 * 24));
+      
+      if (joursDepuisEnvoi >= CONFIG_RAPPELS.RELANCE_INSTRUCTION_JOURS) {
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.RELANCE_INSTRUCTION && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.RELANCE_INSTRUCTION,
+            titre: `Relance instruction bancaire - ${opportunite.titre}`,
+            description: `L'instruction bancaire pour "${opportunite.titre}" est en cours depuis ${joursDepuisEnvoi} jours. Pensez à relancer la banque.`,
+            priorite: 'haute',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      }
+    }
+    
+    // 5. Documents manquants (constitution dossier depuis trop longtemps)
+    if (opportunite.statut === 'constitution_dossier' && opportunite.dateModification) {
+      const dateModif = new Date(opportunite.dateModification);
+      const joursDepuisDebut = Math.floor((maintenant - dateModif) / (1000 * 60 * 60 * 24));
+      
+      if (joursDepuisDebut >= CONFIG_RAPPELS.DOCUMENTS_DELAI) {
+        if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.DOCUMENTS_MANQUANTS && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.DOCUMENTS_MANQUANTS,
+            titre: `Documents manquants - ${opportunite.titre}`,
+            description: `La constitution du dossier pour "${opportunite.titre}" dure depuis ${joursDepuisDebut} jours. Vérifiez les documents manquants.`,
+            priorite: 'haute',
+            opportuniteId: opportunite.id,
+            clientId: opportunite.clientId,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      }
+    }
+    
+    // 6. Facturation à faire (après déblocage)
+    if (opportunite.statut === 'deblocage_fonds') {
+      if (!rappels.find(r => r.opportuniteId === opportunite.id && r.type === TYPES_RAPPELS.FACTURATION_A_FAIRE && !r.resolu)) {
+        nouveauxRappels.push({
+          id: uuidv4(),
+          type: TYPES_RAPPELS.FACTURATION_A_FAIRE,
+          titre: `Facturation à faire - ${opportunite.titre}`,
+          description: `Les fonds ont été débloqués pour "${opportunite.titre}". Pensez à facturer.`,
+          priorite: 'haute',
+          opportuniteId: opportunite.id,
+          clientId: opportunite.clientId,
+          dateCreation: maintenant.toISOString(),
+          resolu: false
+        });
+      }
+    }
+  });
+  
+  // 7. Pas de contact depuis X jours (pour tous les clients actifs)
+  clients.forEach(client => {
+    if (client.dateModification) {
+      const dateModif = new Date(client.dateModification);
+      const joursSansContact = Math.floor((maintenant - dateModif) / (1000 * 60 * 60 * 24));
+      
+      // Vérifier si le client a des opportunités actives
+      const opportunitesActives = opportunites.filter(o => 
+        o.clientId === client.id && o.statut !== 'annulee' && o.statut !== 'facturation'
+      );
+      
+      if (opportunitesActives.length > 0 && joursSansContact >= CONFIG_RAPPELS.PAS_DE_CONTACT_JOURS) {
+        if (!rappels.find(r => r.clientId === client.id && r.type === TYPES_RAPPELS.PAS_DE_CONTACT && !r.resolu)) {
+          nouveauxRappels.push({
+            id: uuidv4(),
+            type: TYPES_RAPPELS.PAS_DE_CONTACT,
+            titre: `Pas de contact depuis ${joursSansContact} jours - ${client.nom}`,
+            description: `Aucun contact avec ${client.nom} depuis ${joursSansContact} jours. ${opportunitesActives.length} opportunité(s) active(s).`,
+            priorite: 'moyenne',
+            clientId: client.id,
+            dateCreation: maintenant.toISOString(),
+            resolu: false
+          });
+        }
+      }
+    }
+  });
+  
+  // Ajouter les nouveaux rappels
+  nouveauxRappels.forEach(rappel => {
+    if (!rappels.find(r => r.id === rappel.id)) {
+      rappels.push(rappel);
+    }
+  });
+  
+  return nouveauxRappels;
+}
+
+// Fonction helper pour obtenir les infos d'un statut
+function getStatutInfo(statut) {
+  const statuts = {
+    'prise_contact': { label: 'Prise de contact', order: 1 },
+    'qualification': { label: 'Qualification / Analyse', order: 2 },
+    'recherche_financement': { label: 'Recherche de financement', order: 3 },
+    'proposition_envoyee': { label: 'Proposition envoyée', order: 4 },
+    'proposition_acceptee': { label: 'Proposition acceptée', order: 5 },
+    'constitution_dossier': { label: 'Constitution du dossier', order: 6 },
+    'dossier_envoye_banque': { label: 'Dossier envoyé à la banque', order: 7 },
+    'instruction_bancaire': { label: 'Instruction bancaire', order: 8 },
+    'accord_principe': { label: 'Accord de principe obtenu', order: 9 },
+    'offre_pret_recue': { label: 'Offre de prêt reçue', order: 10 },
+    'offre_acceptee': { label: 'Offre acceptée par le client', order: 11 },
+    'signature': { label: 'Signature', order: 12 },
+    'deblocage_fonds': { label: 'Déblocage des fonds', order: 13 },
+    'facturation': { label: 'Facturation', order: 14 },
+    'annulee': { label: 'Annulée', order: 99 }
+  };
+  return statuts[statut] || { label: statut, order: 0 };
+}
+
+// Routes pour les rappels
+app.get('/api/rappels', (req, res) => {
+  const { resolu } = req.query;
+  let rappelsFiltres = [...rappels];
+  
+  if (resolu === 'false') {
+    rappelsFiltres = rappelsFiltres.filter(r => !r.resolu);
+  } else if (resolu === 'true') {
+    rappelsFiltres = rappelsFiltres.filter(r => r.resolu);
+  }
+  
+  // Trier par priorité et date
+  rappelsFiltres.sort((a, b) => {
+    const prioriteOrder = { 'urgente': 0, 'haute': 1, 'moyenne': 2, 'basse': 3 };
+    if (prioriteOrder[a.priorite] !== prioriteOrder[b.priorite]) {
+      return prioriteOrder[a.priorite] - prioriteOrder[b.priorite];
+    }
+    return new Date(b.dateCreation) - new Date(a.dateCreation);
+  });
+  
+  res.json(rappelsFiltres);
+});
+
+app.post('/api/rappels/generer', (req, res) => {
+  const nouveauxRappels = genererRappelsAutomatiques();
+  res.json({ 
+    message: `${nouveauxRappels.length} nouveau(x) rappel(s) généré(s)`,
+    rappels: nouveauxRappels 
+  });
+});
+
+app.put('/api/rappels/:id/resoudre', (req, res) => {
+  const index = rappels.findIndex(r => r.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Rappel non trouvé' });
+  }
+  rappels[index].resolu = true;
+  rappels[index].dateResolution = new Date().toISOString();
+  res.json(rappels[index]);
+});
+
+app.delete('/api/rappels/:id', (req, res) => {
+  const index = rappels.findIndex(r => r.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Rappel non trouvé' });
+  }
+  rappels.splice(index, 1);
+  res.json({ message: 'Rappel supprimé avec succès' });
+});
+
+// Générer les rappels automatiquement toutes les heures
+setInterval(() => {
+  genererRappelsAutomatiques();
+}, 60 * 60 * 1000); // Toutes les heures
+
+// Générer les rappels au démarrage
+setTimeout(() => {
+  genererRappelsAutomatiques();
+}, 5000); // Après 5 secondes
 
 // Fonction helper pour synchroniser automatiquement vers Google Sheets (en arrière-plan)
 async function autoSyncToGoogleSheets() {

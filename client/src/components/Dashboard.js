@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getStats, syncAllFromSheets, getGoogleSheetsStatus } from '../api/api';
-import { FiUsers, FiUser, FiBriefcase, FiDollarSign, FiRefreshCw } from 'react-icons/fi';
+import { getStats, syncAllFromSheets, getGoogleSheetsStatus, getRappels } from '../api/api';
+import { FiUsers, FiUser, FiBriefcase, FiDollarSign, FiRefreshCw, FiBell } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [rappels, setRappels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -35,7 +37,7 @@ function Dashboard() {
     }
 
     // Charger les statistiques après la synchronisation
-    await loadStats();
+    await Promise.all([loadStats(), loadRappels()]);
   };
 
   const loadStats = async () => {
@@ -46,6 +48,15 @@ function Dashboard() {
       console.error('Erreur lors du chargement des statistiques:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRappels = async () => {
+    try {
+      const response = await getRappels('false');
+      setRappels(response.data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des rappels:', error);
     }
   };
 
@@ -110,6 +121,26 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {rappels.length > 0 && (
+        <div className="card" style={{ marginTop: '1rem', borderLeft: '4px solid #ff9800' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 className="card-title" style={{ margin: 0 }}>
+                <FiBell style={{ marginRight: '0.5rem', color: '#ff9800' }} />
+                Rappels actifs ({rappels.length})
+              </h3>
+              <p style={{ margin: '0.5rem 0 0 0', color: '#666' }}>
+                {rappels.filter(r => r.priorite === 'urgente').length} urgent(s),{' '}
+                {rappels.filter(r => r.priorite === 'haute').length} important(s)
+              </p>
+            </div>
+            <Link to="/rappels" className="btn btn-primary">
+              Voir tous les rappels
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h3 className="card-title">Opportunités par statut</h3>

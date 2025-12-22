@@ -66,4 +66,10 @@ export const syncProspectsToSheets = (prospects) => api.post('/googlesheets/pros
 export const syncAllFromSheets = () => api.post('/googlesheets/sync/all');
 export const disconnectGoogleSheets = () => api.post('/googlesheets/disconnect');
 
+// Rappels
+export const getRappels = (resolu) => api.get('/rappels', { params: { resolu } });
+export const genererRappels = () => api.post('/rappels/generer');
+export const resoudreRappel = (id) => api.put(`/rappels/${id}/resoudre`);
+export const deleteRappel = (id) => api.delete(`/rappels/${id}`);
+
 export default api;
