@@ -3,6 +3,9 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const { v4: uuidv4 } = require('uuid');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -43,6 +46,157 @@ app.get('/api/clients/:id', (req, res) => {
   res.json(client);
 });
 
+// Fonction pour générer le PDF avec la liste des documents nécessaires
+function genererPDFDocuments(client) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks = [];
+      
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(chunks);
+        const base64 = pdfBuffer.toString('base64');
+        resolve(base64);
+      });
+      doc.on('error', reject);
+
+      // En-tête
+      doc.fontSize(20).text('Liste des documents nécessaires', { align: 'center' });
+      doc.moveDown();
+      
+      doc.fontSize(12).text(`Client : ${client.nom}`, { align: 'left' });
+      if (client.email) {
+        doc.text(`Email : ${client.email}`, { align: 'left' });
+      }
+      if (client.telephone) {
+        doc.text(`Téléphone : ${client.telephone}`, { align: 'left' });
+      }
+      doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, { align: 'left' });
+      doc.moveDown(2);
+
+      // Liste des documents
+      doc.fontSize(16).text('DOCUMENTS À FOURNIR :', { underline: true });
+      doc.moveDown();
+
+      const documents = [
+        'IDENTITÉ',
+        '  • Pièce d\'identité recto-verso (carte nationale d\'identité ou passeport)',
+        '  • Justificatif de domicile de moins de 3 mois',
+        '',
+        'SITUATION PROFESSIONNELLE',
+        '  • 3 derniers bulletins de salaire',
+        '  • Contrat de travail ou attestation employeur',
+        '  • Avis d\'imposition des 2 dernières années',
+        '  • Relevés bancaires des 3 derniers mois (tous les comptes)',
+        '',
+        'SITUATION FINANCIÈRE',
+        '  • Relevés d\'épargne (Livret A, PEL, assurance-vie, etc.)',
+        '  • Justificatifs de revenus complémentaires (pensions, loyers, etc.)',
+        '  • Tableau d\'amortissement des crédits en cours',
+        '  • Justificatifs de charges (pensions alimentaires, etc.)',
+        '',
+        'PROJET IMMOBILIER',
+        '  • Compromis de vente ou promesse de vente',
+        '  • Estimation du bien (si achat)',
+        '  • Justificatif d\'apport personnel',
+        '  • Devis des travaux (si travaux prévus)',
+        '',
+        'AUTRES DOCUMENTS',
+        '  • Attestation de non-gage (si véhicule)',
+        '  • Justificatifs de situation familiale (mariage, divorce, etc.)',
+        '  • Tout autre document pouvant justifier votre situation'
+      ];
+
+      doc.fontSize(11);
+      documents.forEach(docItem => {
+        if (docItem.startsWith('  •')) {
+          doc.text(docItem, { indent: 20 });
+        } else if (docItem === '') {
+          doc.moveDown(0.5);
+        } else {
+          doc.fontSize(12).text(docItem, { bold: true });
+          doc.fontSize(11);
+        }
+      });
+
+      doc.moveDown(2);
+      doc.fontSize(10)
+        .text('Merci de nous transmettre ces documents dans les plus brefs délais pour permettre l\'étude de votre dossier.', { align: 'center', italic: true });
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// Fonction pour envoyer l'email avec le PDF via Outlook
+async function envoyerEmailDocuments(client, pdfBase64) {
+  try {
+    const axios = require('axios');
+    const outlookModule = require('./routes/outlook');
+    
+    // Vérifier si Outlook est connecté
+    let outlookConnected = false;
+    try {
+      // Accéder directement au token stocké dans le module outlook
+      // Note: Cette approche nécessite d'exposer une fonction dans le module
+      const outlookStatus = await axios.get(`http://localhost:${PORT}/api/outlook/status`).catch(() => null);
+      outlookConnected = outlookStatus && outlookStatus.data && outlookStatus.data.connected;
+    } catch (error) {
+      outlookConnected = false;
+    }
+    
+    if (!outlookConnected) {
+      console.log('ℹ️ Outlook non connecté - email non envoyé automatiquement');
+      return { success: false, reason: 'outlook_not_connected' };
+    }
+
+    // Générer le corps de l'email
+    const emailBody = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2 style="color: #2c3e50;">Bonjour ${client.nom},</h2>
+          
+          <p>Nous vous remercions de votre confiance et de nous avoir confié votre projet immobilier.</p>
+          
+          <p>Pour permettre l'étude complète de votre dossier de crédit, nous avons besoin des documents listés dans le fichier PDF joint à cet email.</p>
+          
+          <p><strong>Merci de nous transmettre ces documents dans les plus brefs délais.</strong></p>
+          
+          <p>Vous pouvez nous les envoyer :</p>
+          <ul>
+            <li>Par email à cette adresse</li>
+            <li>Par courrier postal</li>
+            <li>Lors d'un rendez-vous</li>
+          </ul>
+          
+          <p>Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+          
+          <p>Cordialement,<br>
+          <strong>Votre équipe de courtage en crédits</strong></p>
+        </body>
+      </html>
+    `;
+
+    // Envoyer l'email via l'API Outlook
+    const response = await axios.post(`http://localhost:${PORT}/api/outlook/send-email`, {
+      to: client.email,
+      subject: `Liste des documents nécessaires - Dossier ${client.nom}`,
+      body: emailBody,
+      attachmentBase64: pdfBase64,
+      attachmentName: `Documents_necessaires_${client.nom.replace(/\s+/g, '_')}.pdf`,
+      attachmentContentType: 'application/pdf'
+    });
+
+    return { success: true, message: 'Email envoyé avec succès' };
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de l\'email:', error.response?.data || error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 app.post('/api/clients', async (req, res) => {
   const { nom, email, telephone, entreprise, adresse, notes, apporteurId, etape, courtier, decision } = req.body;
   const nouveauClient = {
@@ -64,6 +218,44 @@ app.post('/api/clients', async (req, res) => {
   
   // Synchroniser automatiquement vers Google Sheets (en arrière-plan)
   autoSyncToGoogleSheets().catch(err => console.error('Sync error:', err));
+  
+  // Créer automatiquement une opportunité pour ce nouveau client
+  try {
+    const nouvelleOpportunite = {
+      id: uuidv4(),
+      titre: `Dossier ${nom}`,
+      description: `Opportunité créée automatiquement lors de l'ajout du client ${nom}`,
+      montant: 0,
+      statut: 'prise_contact',
+      clientId: nouveauClient.id,
+      dateEcheance: null,
+      probabilite: 0,
+      dateCreation: new Date().toISOString(),
+      dateModification: new Date().toISOString()
+    };
+    opportunites.push(nouvelleOpportunite);
+    console.log(`✅ Opportunité créée automatiquement pour le client ${nom}`);
+  } catch (error) {
+    console.error('Erreur lors de la création automatique de l\'opportunité:', error);
+  }
+  
+  // Générer le PDF et envoyer l'email (en arrière-plan, non bloquant)
+  if (email) {
+    genererPDFDocuments(nouveauClient)
+      .then(pdfBase64 => {
+        return envoyerEmailDocuments(nouveauClient, pdfBase64);
+      })
+      .then(result => {
+        if (result.success) {
+          console.log(`✅ Email avec liste des documents envoyé à ${email}`);
+        } else {
+          console.log(`ℹ️ Email non envoyé: ${result.reason || result.error}`);
+        }
+      })
+      .catch(err => {
+        console.error('Erreur lors de la génération/envoi du PDF:', err);
+      });
+  }
   
   res.status(201).json(nouveauClient);
 });

@@ -18,7 +18,7 @@ router.get('/auth', (req, res) => {
     `response_type=code&` +
     `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
     `response_mode=query&` +
-    `scope=${encodeURIComponent('https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Mail.Read')}&` +
+    `scope=${encodeURIComponent('https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send')}&` +
     `state=12345`;
   
   res.json({ authUrl });
@@ -42,7 +42,7 @@ router.get('/callback', async (req, res) => {
         code: code,
         redirect_uri: REDIRECT_URI,
         grant_type: 'authorization_code',
-        scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Mail.Read'
+        scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send'
       }),
       {
         headers: {
@@ -84,7 +84,7 @@ async function getValidToken() {
           client_secret: CLIENT_SECRET,
           refresh_token: outlookTokens.refresh_token,
           grant_type: 'refresh_token',
-          scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Mail.Read'
+          scope: 'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send'
         }),
         {
           headers: {
@@ -240,6 +240,61 @@ router.get('/calendar/events', async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la récupération des événements:', error.response?.data || error.message);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Envoyer un email avec pièce jointe
+router.post('/send-email', async (req, res) => {
+  try {
+    const token = await getValidToken();
+    const { to, subject, body, attachmentBase64, attachmentName, attachmentContentType } = req.body;
+
+    if (!to || !subject || !body) {
+      return res.status(400).json({ error: 'Destinataire, sujet et corps du message sont requis' });
+    }
+
+    // Construire le message avec pièce jointe
+    const message = {
+      message: {
+        subject: subject,
+        body: {
+          contentType: 'HTML',
+          content: body
+        },
+        toRecipients: Array.isArray(to) 
+          ? to.map(email => ({ emailAddress: { address: email } }))
+          : [{ emailAddress: { address: to } }]
+      }
+    };
+
+    // Si une pièce jointe est fournie
+    if (attachmentBase64 && attachmentName) {
+      message.message.attachments = [{
+        '@odata.type': '#microsoft.graph.fileAttachment',
+        name: attachmentName,
+        contentType: attachmentContentType || 'application/pdf',
+        contentBytes: attachmentBase64
+      }];
+    }
+
+    const response = await axios.post(
+      'https://graph.microsoft.com/v1.0/me/sendMail',
+      message,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    res.json({ success: true, message: 'Email envoyé avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de l\'email:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Erreur lors de l\'envoi de l\'email', 
+      details: error.response?.data || error.message 
+    });
   }
 });
 
