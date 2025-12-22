@@ -72,4 +72,15 @@ export const genererRappels = () => api.post('/rappels/generer');
 export const resoudreRappel = (id) => api.put(`/rappels/${id}/resoudre`);
 export const deleteRappel = (id) => api.delete(`/rappels/${id}`);
 
+// Recherche globale
+export const searchGlobal = (query) => api.get('/search', { params: { q: query } });
+
+// Templates d'emails
+export const getEmailTemplates = () => api.get('/email-templates');
+export const getEmailTemplate = (id) => api.get(`/email-templates/${id}`);
+export const createEmailTemplate = (data) => api.post('/email-templates', data);
+export const updateEmailTemplate = (id, data) => api.put(`/email-templates/${id}`, data);
+export const deleteEmailTemplate = (id) => api.delete(`/email-templates/${id}`);
+export const sendEmailFromTemplate = (templateId, data) => api.post(`/email-templates/${templateId}/send`, data);
+
 export default api;

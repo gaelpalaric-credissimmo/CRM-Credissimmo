@@ -846,6 +846,261 @@ setTimeout(() => {
   genererRappelsAutomatiques();
 }, 5000); // Après 5 secondes
 
+// ============================================
+// RECHERCHE GLOBALE
+// ============================================
+
+app.get('/api/search', (req, res) => {
+  const { q } = req.query;
+  
+  if (!q || q.length < 2) {
+    return res.json([]);
+  }
+
+  const query = q.toLowerCase();
+  const results = [];
+
+  // Recherche dans les clients
+  clients.forEach(client => {
+    const match = 
+      client.nom?.toLowerCase().includes(query) ||
+      client.email?.toLowerCase().includes(query) ||
+      client.telephone?.includes(query) ||
+      client.entreprise?.toLowerCase().includes(query);
+    
+    if (match) {
+      results.push({
+        type: 'client',
+        id: client.id,
+        title: client.nom,
+        subtitle: client.entreprise || '',
+        details: [
+          { icon: '📧', text: client.email || '' },
+          { icon: '📞', text: client.telephone || '' }
+        ].filter(d => d.text)
+      });
+    }
+  });
+
+  // Recherche dans les prospects
+  prospects.forEach(prospect => {
+    const match = 
+      prospect.nom?.toLowerCase().includes(query) ||
+      prospect.prenom?.toLowerCase().includes(query) ||
+      prospect.email?.toLowerCase().includes(query) ||
+      prospect.telephone?.includes(query);
+    
+    if (match) {
+      results.push({
+        type: 'prospect',
+        id: prospect.id,
+        title: `${prospect.prenom || ''} ${prospect.nom || ''}`.trim(),
+        subtitle: prospect.poste || '',
+        details: [
+          { icon: '📧', text: prospect.email || '' },
+          { icon: '📞', text: prospect.telephone || '' }
+        ].filter(d => d.text)
+      });
+    }
+  });
+
+  // Recherche dans les opportunités
+  opportunites.forEach(opportunite => {
+    const client = clients.find(c => c.id === opportunite.clientId);
+    const match = 
+      opportunite.titre?.toLowerCase().includes(query) ||
+      opportunite.description?.toLowerCase().includes(query) ||
+      client?.nom?.toLowerCase().includes(query);
+    
+    if (match) {
+      results.push({
+        type: 'opportunite',
+        id: opportunite.id,
+        title: opportunite.titre,
+        subtitle: client ? `Client: ${client.nom}` : '',
+        details: [
+          { icon: '💰', text: `Montant: ${opportunite.montant ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(opportunite.montant) : 'N/A'}` },
+          { icon: '📊', text: `Statut: ${getStatutInfo(opportunite.statut).label}` }
+        ]
+      });
+    }
+  });
+
+  // Limiter à 10 résultats
+  res.json(results.slice(0, 10));
+});
+
+// ============================================
+// TEMPLATES D'EMAILS
+// ============================================
+
+let emailTemplates = [
+  {
+    id: 'default-relance',
+    nom: 'Relance client',
+    sujet: 'Relance - Dossier {{client_nom}}',
+    corps: `
+      <p>Bonjour {{client_nom}},</p>
+      <p>Nous souhaitons faire le point sur votre dossier de crédit immobilier.</p>
+      <p>Merci de nous contacter pour que nous puissions avancer ensemble.</p>
+      <p>Cordialement,<br>Votre équipe de courtage</p>
+    `,
+    variables: ['client_nom', 'client_email', 'opportunite_titre']
+  },
+  {
+    id: 'default-documents',
+    nom: 'Demande de documents',
+    sujet: 'Documents nécessaires - Dossier {{client_nom}}',
+    corps: `
+      <p>Bonjour {{client_nom}},</p>
+      <p>Pour avancer dans l'étude de votre dossier, nous avons besoin des documents suivants :</p>
+      <ul>
+        <li>Pièce d'identité</li>
+        <li>3 derniers bulletins de salaire</li>
+        <li>Relevés bancaires</li>
+      </ul>
+      <p>Merci de nous les transmettre dans les plus brefs délais.</p>
+      <p>Cordialement,<br>Votre équipe de courtage</p>
+    `,
+    variables: ['client_nom', 'opportunite_titre']
+  },
+  {
+    id: 'default-accord',
+    nom: 'Accord de principe obtenu',
+    sujet: 'Félicitations ! Accord de principe obtenu - {{opportunite_titre}}',
+    corps: `
+      <p>Bonjour {{client_nom}},</p>
+      <p>Excellente nouvelle ! Nous avons obtenu un accord de principe pour votre projet : {{opportunite_titre}}</p>
+      <p>Montant : {{opportunite_montant}}€</p>
+      <p>Nous vous contacterons prochainement pour la suite des démarches.</p>
+      <p>Cordialement,<br>Votre équipe de courtage</p>
+    `,
+    variables: ['client_nom', 'opportunite_titre', 'opportunite_montant']
+  }
+];
+
+// Routes pour les templates d'emails
+app.get('/api/email-templates', (req, res) => {
+  res.json(emailTemplates);
+});
+
+app.get('/api/email-templates/:id', (req, res) => {
+  const template = emailTemplates.find(t => t.id === req.params.id);
+  if (!template) {
+    return res.status(404).json({ message: 'Template non trouvé' });
+  }
+  res.json(template);
+});
+
+app.post('/api/email-templates', (req, res) => {
+  const { nom, sujet, corps, variables } = req.body;
+  const nouveauTemplate = {
+    id: uuidv4(),
+    nom,
+    sujet,
+    corps,
+    variables: variables || [],
+    dateCreation: new Date().toISOString(),
+    dateModification: new Date().toISOString()
+  };
+  emailTemplates.push(nouveauTemplate);
+  res.status(201).json(nouveauTemplate);
+});
+
+app.put('/api/email-templates/:id', (req, res) => {
+  const index = emailTemplates.findIndex(t => t.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Template non trouvé' });
+  }
+  emailTemplates[index] = {
+    ...emailTemplates[index],
+    ...req.body,
+    dateModification: new Date().toISOString()
+  };
+  res.json(emailTemplates[index]);
+});
+
+app.delete('/api/email-templates/:id', (req, res) => {
+  const index = emailTemplates.findIndex(t => t.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ message: 'Template non trouvé' });
+  }
+  emailTemplates.splice(index, 1);
+  res.json({ message: 'Template supprimé avec succès' });
+});
+
+// Fonction pour remplacer les variables dans un template
+function remplacerVariables(template, data) {
+  let sujet = template.sujet;
+  let corps = template.corps;
+
+  Object.keys(data).forEach(key => {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    sujet = sujet.replace(regex, data[key] || '');
+    corps = corps.replace(regex, data[key] || '');
+  });
+
+  return { sujet, corps };
+}
+
+app.post('/api/email-templates/:id/send', async (req, res) => {
+  try {
+    const template = emailTemplates.find(t => t.id === req.params.id);
+    if (!template) {
+      return res.status(404).json({ message: 'Template non trouvé' });
+    }
+
+    const { clientId, opportuniteId, destinataire, variablesSupplementaires } = req.body;
+    
+    // Récupérer les données du client et de l'opportunité
+    const client = clients.find(c => c.id === clientId);
+    const opportunite = opportuniteId ? opportunites.find(o => o.id === opportuniteId) : null;
+
+    // Préparer les variables
+    const data = {
+      client_nom: client?.nom || '',
+      client_email: client?.email || '',
+      client_telephone: client?.telephone || '',
+      opportunite_titre: opportunite?.titre || '',
+      opportunite_montant: opportunite?.montant ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(opportunite.montant) : '',
+      ...variablesSupplementaires
+    };
+
+    // Remplacer les variables
+    const { sujet, corps } = remplacerVariables(template, data);
+
+    // Envoyer l'email via Outlook
+    const axios = require('axios');
+    const email = destinataire || client?.email;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Aucun destinataire spécifié' });
+    }
+
+    try {
+      const outlookStatus = await axios.get(`http://localhost:${PORT}/api/outlook/status`).catch(() => null);
+      if (!outlookStatus || !outlookStatus.data.connected) {
+        return res.status(400).json({ message: 'Outlook non connecté' });
+      }
+
+      const response = await axios.post(`http://localhost:${PORT}/api/outlook/send-email`, {
+        to: email,
+        subject: sujet,
+        body: corps
+      });
+
+      res.json({ success: true, message: 'Email envoyé avec succès' });
+    } catch (error) {
+      res.status(500).json({ 
+        message: 'Erreur lors de l\'envoi de l\'email', 
+        error: error.message 
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Fonction helper pour synchroniser automatiquement vers Google Sheets (en arrière-plan)
 async function autoSyncToGoogleSheets() {
   try {
