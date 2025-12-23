@@ -59,17 +59,30 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Servir les fichiers statiques en production
+// Servir les fichiers statiques en production (AVANT la gestion des erreurs)
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
-  app.use(express.static(path.join(__dirname, 'client/build')));
+  const buildPath = path.join(__dirname, 'client/build');
   
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  // Servir les fichiers statiques
+  app.use(express.static(buildPath));
+  
+  // Toutes les routes non-API servent index.html (pour React Router)
+  app.get('*', (req, res, next) => {
+    // Ne pas intercepter les routes API
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(buildPath, 'index.html'), (err) => {
+      if (err) {
+        console.error('Erreur lors de l\'envoi de index.html:', err);
+        res.status(500).send('Erreur serveur');
+      }
+    });
   });
 }
 
-// Gestion des erreurs
+// Gestion des erreurs (APRÈS les routes statiques)
 app.use((err, req, res, next) => {
   console.error('Erreur:', err);
   res.status(err.status || 500).json({

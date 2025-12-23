@@ -88,7 +88,7 @@ function ImportExcel() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError('Erreur lors du téléchargement du template');
+      setError('Erreur lors du téléchargement du template: ' + (err.message || 'Erreur inconnue'));
       console.error('Erreur template:', err);
     }
   };
