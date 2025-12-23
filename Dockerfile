@@ -26,6 +26,9 @@ COPY package*.json ./
 RUN npm install --only=production
 
 COPY --from=build /app/server.js ./
+COPY --from=build /app/config ./config
+COPY --from=build /app/models ./models
+COPY --from=build /app/middleware ./middleware
 COPY --from=build /app/routes ./routes
 COPY --from=build /app/client/build ./client/build
 
