@@ -1,7 +1,8 @@
 services:
   - type: web
-    name: crm-project
+    name: crm-credissimmo
     env: node
+    region: frankfurt
     buildCommand: npm install && cd client && npm install && npm run build && cd ..
     startCommand: npm start
     envVars:
@@ -9,4 +10,12 @@ services:
         value: production
       - key: PORT
         value: 10000
-    healthCheckPath: /
+      - key: MONGODB_URI
+        sync: false  # À configurer manuellement dans Render avec votre URI
+      - key: JWT_SECRET
+        sync: false  # À configurer manuellement dans Render
+      - key: SESSION_SECRET
+        sync: false  # À configurer manuellement dans Render
+      - key: FRONTEND_URL
+        sync: false  # Sera automatiquement l'URL Render
+    healthCheckPath: /api/health

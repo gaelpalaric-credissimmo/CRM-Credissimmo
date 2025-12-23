@@ -10,7 +10,36 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true
 });
+
+// Intercepteur pour ajouter le token à chaque requête
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Intercepteur pour gérer les erreurs d'authentification
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expiré ou invalide
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Clients
 export const getClients = () => api.get('/clients');
@@ -82,5 +111,12 @@ export const createEmailTemplate = (data) => api.post('/email-templates', data);
 export const updateEmailTemplate = (id, data) => api.put(`/email-templates/${id}`, data);
 export const deleteEmailTemplate = (id) => api.delete(`/email-templates/${id}`);
 export const sendEmailFromTemplate = (templateId, data) => api.post(`/email-templates/${templateId}/send`, data);
+
+// Authentification
+export const login = (email, password) => api.post('/auth/login', { email, password });
+export const logout = () => api.post('/auth/logout');
+export const getCurrentUser = () => api.get('/auth/me');
+export const register = (userData) => api.post('/auth/register', userData);
+export const getUsers = () => api.get('/auth/users');
 
 export default api;

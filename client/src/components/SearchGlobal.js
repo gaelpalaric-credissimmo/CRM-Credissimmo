@@ -229,3 +229,5 @@ function SearchGlobal({ isOpen, onClose }) {
 
 export default SearchGlobal;
 
+
+

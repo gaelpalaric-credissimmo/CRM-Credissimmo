@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
@@ -10,14 +10,24 @@ import Apporteurs from './components/Apporteurs';
 import GoogleSheets from './components/GoogleSheets';
 import Rappels from './components/Rappels';
 import EmailTemplates from './components/EmailTemplates';
-import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck, FiFileText, FiChevronDown, FiChevronUp, FiSettings, FiBell, FiSearch } from 'react-icons/fi';
+import Login from './components/Login';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { FiHome, FiUsers, FiUser, FiBriefcase, FiMail, FiMenu, FiX, FiUserCheck, FiFileText, FiChevronDown, FiChevronUp, FiSettings, FiBell, FiSearch, FiLogOut } from 'react-icons/fi';
 import SearchGlobal from './components/SearchGlobal';
 
 function Navigation() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   // Fermer le menu déroulant quand on clique en dehors
   useEffect(() => {
@@ -67,6 +77,12 @@ function Navigation() {
         <div className="nav-container">
           <div className="nav-brand">
             <h1>CRM</h1>
+            {user && (
+              <span className="nav-user-info">
+                {user.prenom} {user.nom}
+                {user.role === 'admin' && <span className="nav-role-badge">Admin</span>}
+              </span>
+            )}
           </div>
           <div className="nav-search-trigger">
             <button
@@ -133,6 +149,14 @@ function Navigation() {
               </ul>
             )}
           </li>
+          {user && (
+            <li className="nav-user-menu">
+              <button onClick={handleLogout} className="nav-logout-btn" title="Déconnexion">
+                <FiLogOut />
+                <span>Déconnexion</span>
+              </button>
+            </li>
+          )}
         </ul>
       </div>
     </nav>
@@ -141,26 +165,98 @@ function Navigation() {
   );
 }
 
-function App() {
+function AppContent() {
   return (
     <Router>
       <div className="App">
         <Navigation />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/rappels" element={<Rappels />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/prospects" element={<Prospects />} />
-            <Route path="/opportunites" element={<Opportunites />} />
-            <Route path="/apporteurs" element={<Apporteurs />} />
-            <Route path="/googlesheets" element={<GoogleSheets />} />
-            <Route path="/outlook" element={<Outlook />} />
-            <Route path="/email-templates" element={<EmailTemplates />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/rappels"
+              element={
+                <ProtectedRoute>
+                  <Rappels />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clients"
+              element={
+                <ProtectedRoute>
+                  <Clients />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prospects"
+              element={
+                <ProtectedRoute>
+                  <Prospects />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/opportunites"
+              element={
+                <ProtectedRoute>
+                  <Opportunites />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/apporteurs"
+              element={
+                <ProtectedRoute>
+                  <Apporteurs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/googlesheets"
+              element={
+                <ProtectedRoute>
+                  <GoogleSheets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/outlook"
+              element={
+                <ProtectedRoute>
+                  <Outlook />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/email-templates"
+              element={
+                <ProtectedRoute>
+                  <EmailTemplates />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
