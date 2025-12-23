@@ -62,8 +62,8 @@ app.get('/api/health', (req, res) => {
 // Servir les fichiers statiques en production (AVANT la gestion des erreurs)
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
-  const buildPath = path.join(__dirname, 'client/build');
   const fs = require('fs');
+  const buildPath = path.join(__dirname, 'client/build');
   
   // Vérifier que le dossier build existe
   if (!fs.existsSync(buildPath)) {
@@ -71,14 +71,23 @@ if (process.env.NODE_ENV === 'production') {
     console.error('   Assurez-vous que le build a été fait: cd client && npm run build');
   } else {
     console.log('✅ Dossier build trouvé:', buildPath);
+    // Lister les fichiers pour debug
+    try {
+      const files = fs.readdirSync(buildPath);
+      console.log('📁 Fichiers dans build:', files.slice(0, 10).join(', '), '...');
+    } catch (e) {
+      console.error('Erreur lecture dossier build:', e.message);
+    }
   }
   
   // Servir les fichiers statiques (JS, CSS, images, etc.)
   // IMPORTANT: Cette ligne doit être AVANT app.get('*')
+  // Utiliser '/' comme base pour que les fichiers soient accessibles à la racine
   app.use(express.static(buildPath, {
     maxAge: '1y',
     etag: false,
-    index: false // Ne pas servir index.html automatiquement
+    index: false, // Ne pas servir index.html automatiquement
+    dotfiles: 'ignore'
   }));
   
   // Toutes les routes non-API servent index.html (pour React Router)
@@ -89,21 +98,19 @@ if (process.env.NODE_ENV === 'production') {
       return next();
     }
     
-    // Vérifier si c'est un fichier statique (JS, CSS, etc.)
-    const staticExtensions = ['.js', '.css', '.json', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot'];
-    const isStaticFile = staticExtensions.some(ext => req.path.toLowerCase().endsWith(ext));
+    // Servir index.html pour toutes les routes non-API (React Router gère le routing)
+    const indexPath = path.join(buildPath, 'index.html');
     
-    if (isStaticFile) {
-      // Si c'est un fichier statique qui n'a pas été trouvé, retourner 404
-      return res.status(404).json({ error: 'Fichier non trouvé' });
+    // Vérifier que le fichier existe
+    if (!fs.existsSync(indexPath)) {
+      console.error('❌ index.html non trouvé dans:', indexPath);
+      return res.status(500).send('Erreur: Fichier index.html non trouvé. Le build a-t-il été fait?');
     }
     
-    // Sinon, servir index.html pour React Router
-    const indexPath = path.join(buildPath, 'index.html');
     res.sendFile(indexPath, (err) => {
       if (err) {
         console.error('❌ Erreur lors de l\'envoi de index.html:', err);
-        res.status(500).send('Erreur serveur - Fichier index.html non trouvé');
+        res.status(500).send('Erreur serveur');
       }
     });
   });
