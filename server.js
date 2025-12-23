@@ -64,8 +64,13 @@ if (process.env.NODE_ENV === 'production') {
   const path = require('path');
   const buildPath = path.join(__dirname, 'client/build');
   
-  // Servir les fichiers statiques
-  app.use(express.static(buildPath));
+  console.log('📁 Chemin build:', buildPath);
+  
+  // Servir les fichiers statiques (JS, CSS, images, etc.)
+  app.use(express.static(buildPath, {
+    maxAge: '1y', // Cache pour 1 an
+    etag: false
+  }));
   
   // Toutes les routes non-API servent index.html (pour React Router)
   app.get('*', (req, res, next) => {
@@ -73,10 +78,14 @@ if (process.env.NODE_ENV === 'production') {
     if (req.path.startsWith('/api/')) {
       return next();
     }
-    res.sendFile(path.join(buildPath, 'index.html'), (err) => {
+    
+    const indexPath = path.join(buildPath, 'index.html');
+    console.log('📄 Servir index.html pour:', req.path);
+    
+    res.sendFile(indexPath, (err) => {
       if (err) {
-        console.error('Erreur lors de l\'envoi de index.html:', err);
-        res.status(500).send('Erreur serveur');
+        console.error('❌ Erreur lors de l\'envoi de index.html:', err);
+        res.status(500).send('Erreur serveur - Fichier index.html non trouvé');
       }
     });
   });
