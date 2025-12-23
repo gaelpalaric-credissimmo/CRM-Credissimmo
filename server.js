@@ -83,21 +83,41 @@ if (process.env.NODE_ENV === 'production') {
   // Servir les fichiers statiques (JS, CSS, images, etc.)
   // IMPORTANT: Cette ligne doit être AVANT app.get('*')
   // Les fichiers React sont dans client/build/static/js/ et client/build/static/css/
+  // fallthrough: false signifie que si le fichier n'existe pas, on ne passe pas au middleware suivant
   app.use(express.static(buildPath, {
     maxAge: '1y',
     etag: false,
-    index: false // Ne pas servir index.html automatiquement
+    index: false, // Ne pas servir index.html automatiquement
+    fallthrough: false // Ne pas continuer si fichier non trouvé
   }));
   
+  // Middleware pour logger les requêtes de fichiers statiques (debug)
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/static/') || req.path.match(/\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i)) {
+      console.log('🔍 Requête fichier statique:', req.path);
+      const filePath = path.join(buildPath, req.path);
+      if (!fs.existsSync(filePath)) {
+        console.error('❌ Fichier non trouvé:', filePath);
+        return res.status(404).send('Fichier non trouvé');
+      }
+    }
+    next();
+  });
+  
   // Toutes les routes non-API servent index.html (pour React Router)
-  // MAIS seulement si le fichier n'existe pas déjà (les fichiers statiques sont servis en premier)
+  // Cette route ne sera atteinte que si express.static n'a pas trouvé le fichier
   app.get('*', (req, res, next) => {
     // Ne pas intercepter les routes API
     if (req.path.startsWith('/api/')) {
       return next();
     }
     
-    // Servir index.html pour toutes les routes non-API (React Router gère le routing)
+    // Ne pas intercepter les fichiers statiques (ils devraient être servis par express.static)
+    if (req.path.match(/\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i)) {
+      return res.status(404).send('Fichier statique non trouvé');
+    }
+    
+    // Servir index.html pour toutes les autres routes (React Router gère le routing)
     const indexPath = path.join(buildPath, 'index.html');
     
     // Vérifier que le fichier existe
