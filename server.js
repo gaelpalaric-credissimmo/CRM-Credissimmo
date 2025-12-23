@@ -82,12 +82,11 @@ if (process.env.NODE_ENV === 'production') {
   
   // Servir les fichiers statiques (JS, CSS, images, etc.)
   // IMPORTANT: Cette ligne doit être AVANT app.get('*')
-  // Utiliser '/' comme base pour que les fichiers soient accessibles à la racine
+  // Les fichiers React sont dans client/build/static/js/ et client/build/static/css/
   app.use(express.static(buildPath, {
     maxAge: '1y',
     etag: false,
-    index: false, // Ne pas servir index.html automatiquement
-    dotfiles: 'ignore'
+    index: false // Ne pas servir index.html automatiquement
   }));
   
   // Toutes les routes non-API servent index.html (pour React Router)
