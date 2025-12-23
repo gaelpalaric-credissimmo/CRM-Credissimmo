@@ -1,0 +1,150 @@
+.import-excel-container {
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.import-instructions {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.import-instructions h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.import-instructions ul {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.import-instructions li {
+  margin: 0.5rem 0;
+}
+
+.import-instructions .note {
+  background: #e3f2fd;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
+  border-left: 4px solid #2196f3;
+}
+
+.template-section {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.file-input-wrapper {
+  position: relative;
+}
+
+.file-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: #f0f0f0;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  justify-content: center;
+}
+
+.file-label:hover {
+  background: #e0e0e0;
+  border-color: #667eea;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #e8f5e9;
+  border-radius: 6px;
+  color: #2e7d32;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #ffebee;
+  border-left: 4px solid #f44336;
+  border-radius: 6px;
+  color: #c62828;
+}
+
+.success-message {
+  padding: 1rem;
+  background: #e8f5e9;
+  border-left: 4px solid #4caf50;
+  border-radius: 6px;
+  color: #2e7d32;
+}
+
+.results-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #c8e6c9;
+}
+
+.results-details p {
+  margin: 0.5rem 0;
+}
+
+.errors-list {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff3e0;
+  border-radius: 6px;
+}
+
+.errors-list ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.errors-list li {
+  margin: 0.25rem 0;
+  color: #e65100;
+}
+
+.btn-upload {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  margin-top: 1rem;
+}
+
+.btn-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .import-excel-container {
+    padding: 1rem;
+  }
+}
+

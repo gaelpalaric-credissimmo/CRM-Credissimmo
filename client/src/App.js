@@ -10,6 +10,7 @@ import Apporteurs from './components/Apporteurs';
 import GoogleSheets from './components/GoogleSheets';
 import Rappels from './components/Rappels';
 import EmailTemplates from './components/EmailTemplates';
+import ImportExcel from './components/ImportExcel';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -56,6 +57,7 @@ function Navigation() {
     { path: '/googlesheets', label: 'Google Sheets', icon: FiFileText },
     { path: '/outlook', label: 'Outlook', icon: FiMail },
     { path: '/email-templates', label: 'Templates emails', icon: FiMail },
+    { path: '/import-excel', label: 'Import Excel', icon: FiFileText },
   ];
 
   const isIntegrationActive = integrationItems.some(item => location.pathname === item.path);
@@ -242,6 +244,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <EmailTemplates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/import-excel"
+              element={
+                <ProtectedRoute>
+                  <ImportExcel />
                 </ProtectedRoute>
               }
             />

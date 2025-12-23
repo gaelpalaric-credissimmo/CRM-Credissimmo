@@ -34,7 +34,10 @@
     "jsonwebtoken": "^9.0.3",
     "mailparser": "^3.9.1",
     "mongoose": "^8.20.4",
-    "uuid": "^9.0.1"
+    "multer": "^2.0.2",
+    "uuid": "^9.0.1",
+    "xlsx": "^0.18.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

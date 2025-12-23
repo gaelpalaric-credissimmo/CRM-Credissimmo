@@ -112,6 +112,17 @@ export const updateEmailTemplate = (id, data) => api.put(`/email-templates/${id}
 export const deleteEmailTemplate = (id) => api.delete(`/email-templates/${id}`);
 export const sendEmailFromTemplate = (templateId, data) => api.post(`/email-templates/${templateId}/send`, data);
 
+// Import Excel
+export const importExcel = (formData) => api.post('/import/excel', formData, {
+  headers: {
+    'Content-Type': 'multipart/form-data'
+  }
+});
+
+export const downloadTemplate = () => api.get('/import/template', {
+  responseType: 'blob'
+});
+
 // Authentification
 export const login = (email, password) => api.post('/auth/login', { email, password });
 export const logout = () => api.post('/auth/logout');

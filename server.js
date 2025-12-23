@@ -48,6 +48,7 @@ app.use('/api/email-templates', require('./routes/emailTemplates'));
 app.use('/api/googlesheets', require('./routes/googlesheets'));
 app.use('/api/outlook', require('./routes/outlook'));
 app.use('/api/imap', require('./routes/imap'));
+app.use('/api/import', require('./routes/import'));
 
 // Route de santé
 app.get('/api/health', (req, res) => {
