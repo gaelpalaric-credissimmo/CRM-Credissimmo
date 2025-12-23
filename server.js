@@ -63,25 +63,43 @@ app.get('/api/health', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
   const buildPath = path.join(__dirname, 'client/build');
+  const fs = require('fs');
   
-  console.log('📁 Chemin build:', buildPath);
+  // Vérifier que le dossier build existe
+  if (!fs.existsSync(buildPath)) {
+    console.error('❌ ERREUR: Le dossier client/build n\'existe pas!');
+    console.error('   Assurez-vous que le build a été fait: cd client && npm run build');
+  } else {
+    console.log('✅ Dossier build trouvé:', buildPath);
+  }
   
   // Servir les fichiers statiques (JS, CSS, images, etc.)
+  // IMPORTANT: Cette ligne doit être AVANT app.get('*')
   app.use(express.static(buildPath, {
-    maxAge: '1y', // Cache pour 1 an
-    etag: false
+    maxAge: '1y',
+    etag: false,
+    index: false // Ne pas servir index.html automatiquement
   }));
   
   // Toutes les routes non-API servent index.html (pour React Router)
+  // MAIS seulement si le fichier n'existe pas déjà (les fichiers statiques sont servis en premier)
   app.get('*', (req, res, next) => {
     // Ne pas intercepter les routes API
     if (req.path.startsWith('/api/')) {
       return next();
     }
     
-    const indexPath = path.join(buildPath, 'index.html');
-    console.log('📄 Servir index.html pour:', req.path);
+    // Vérifier si c'est un fichier statique (JS, CSS, etc.)
+    const staticExtensions = ['.js', '.css', '.json', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot'];
+    const isStaticFile = staticExtensions.some(ext => req.path.toLowerCase().endsWith(ext));
     
+    if (isStaticFile) {
+      // Si c'est un fichier statique qui n'a pas été trouvé, retourner 404
+      return res.status(404).json({ error: 'Fichier non trouvé' });
+    }
+    
+    // Sinon, servir index.html pour React Router
+    const indexPath = path.join(buildPath, 'index.html');
     res.sendFile(indexPath, (err) => {
       if (err) {
         console.error('❌ Erreur lors de l\'envoi de index.html:', err);
